@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_nss_country_membership_list" model="ir.ui.view">
+        <field name="name">nss.country.membership.list</field>
+        <field name="model">nss.country.membership</field>
+        <field name="arch" type="xml">
+            <list string="Pays NSS">
+                <field name="country_id"/>
+                <field name="status"/>
+                <field name="join_date"/>
+                <field name="coordinator_id"/>
+                <field name="focal_org_id"/>
+                <field name="organization_count"/>
+                <field name="active" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_nss_country_membership_form" model="ir.ui.view">
+        <field name="name">nss.country.membership.form</field>
+        <field name="model">nss.country.membership</field>
+        <field name="arch" type="xml">
+            <form string="Pays NSS">
+                <sheet>
+                    <widget name="web_ribbon" title="Archivé" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group>
+                            <field name="country_id" options="{'no_create': True, 'no_open': True}"/>
+                            <field name="status"/>
+                            <field name="active" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="join_date"/>
+                            <field name="exit_date"/>
+                        </group>
+                    </group>
+                    <group string="Coordination nationale">
+                        <field name="coordinator_id"/>
+                        <field name="focal_org_id"/>
+                    </group>
+                    <notebook>
+                        <page string="Organisations rattachées" name="organizations">
+                            <field name="organization_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="nss_org_type"/>
+                                    <field name="nss_founding_member"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notes" name="notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_nss_country_membership_search" model="ir.ui.view">
+        <field name="name">nss.country.membership.search</field>
+        <field name="model">nss.country.membership</field>
+        <field name="arch" type="xml">
+            <search string="Pays NSS">
+                <field name="country_id"/>
+                <field name="coordinator_id"/>
+                <field name="focal_org_id"/>
+                <filter string="Actifs" name="filter_active" domain="[('active', '=', True)]"/>
+                <filter string="Archivés" name="filter_archived" domain="[('active', '=', False)]"/>
+                <separator/>
+                <filter string="Fondateur" name="filter_fondateur" domain="[('status', '=', 'fondateur')]"/>
+                <filter string="Extension" name="filter_extension" domain="[('status', '=', 'extension')]"/>
+                <group expand="0" string="Regrouper par">
+                    <filter string="Statut" name="group_status" context="{'group_by': 'status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_nss_country_membership" model="ir.actions.act_window">
+        <field name="name">Pays NSS</field>
+        <field name="res_model">nss.country.membership</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_nss_country_membership_search"/>
+        <field name="context">{'search_default_filter_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Créer un pays membre NSS
+            </p>
+            <p>
+                Aucun pays n'est créé automatiquement par ce module. La liste
+                des 10 pays NSS sera chargée dans un checkpoint dédié après
+                validation technique.
+            </p>
+        </field>
+    </record>
+
+</odoo>

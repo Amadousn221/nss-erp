@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_partner_form_nss_network" model="ir.ui.view">
+        <field name="name">res.partner.form.nss.network</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <notebook position="inside">
+                <page string="NSS Network" name="nss_network" groups="base.group_user">
+                    <group>
+                        <group>
+                            <field name="nss_country_id" options="{'no_create': True}"/>
+                            <field name="nss_org_type"/>
+                        </group>
+                        <group>
+                            <field name="nss_founding_member"/>
+                        </group>
+                    </group>
+                </page>
+            </notebook>
+        </field>
+    </record>
+
+</odoo>

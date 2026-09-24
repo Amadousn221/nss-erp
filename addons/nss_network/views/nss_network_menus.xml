@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <menuitem id="menu_nss_network_root"
+              name="NSS Network"
+              sequence="60"/>
+
+    <menuitem id="menu_nss_country_membership"
+              name="Pays NSS"
+              parent="menu_nss_network_root"
+              action="action_nss_country_membership"
+              sequence="10"/>
+
+    <menuitem id="menu_nss_membership"
+              name="Adhésions"
+              parent="menu_nss_network_root"
+              action="action_nss_membership"
+              sequence="20"/>
+
+    <menuitem id="menu_nss_responsibility_history"
+              name="Responsabilités"
+              parent="menu_nss_network_root"
+              action="action_nss_responsibility_history"
+              sequence="30"/>
+
+</odoo>

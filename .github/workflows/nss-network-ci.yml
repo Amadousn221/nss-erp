@@ -1,0 +1,111 @@
+name: NSS Network CI
+
+on:
+  pull_request:
+    paths:
+      - "addons/nss_network/**"
+      - ".github/workflows/nss-network-ci.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  group: nss-network-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-nss-network:
+    name: Odoo 18 – installation et tests réels de nss_network
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer nss_network et exécuter ses tests (Docker, Odoo 18 + PostgreSQL 16)
+        id: run_odoo
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          NETWORK="nss-network-ci-net"
+          DB_CONTAINER="nss-network-ci-db"
+          DB_NAME="nss_network_ci"
+          DB_USER="odoo"
+          DB_PASSWORD="$(openssl rand -base64 24)"
+          # Le mot de passe est temporaire, propre à ce run CI, jamais persisté
+          # ni committé. Masqué explicitement pour ne jamais apparaître en clair
+          # dans les logs GitHub Actions.
+          echo "::add-mask::${DB_PASSWORD}"
+
+          echo "== Création du réseau Docker temporaire ${NETWORK} =="
+          docker network create "${NETWORK}"
+
+          echo "== Démarrage de PostgreSQL 16 temporaire (${DB_CONTAINER}) =="
+          docker run -d \
+            --name "${DB_CONTAINER}" \
+            --network "${NETWORK}" \
+            -e POSTGRES_DB="${DB_NAME}" \
+            -e POSTGRES_USER="${DB_USER}" \
+            -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
+            postgres:16 >/dev/null
+
+          echo "== Attente de la disponibilité de PostgreSQL (pg_isready) =="
+          pg_ready=false
+          for _ in $(seq 1 30); do
+            if docker exec "${DB_CONTAINER}" pg_isready -U "${DB_USER}" -d "${DB_NAME}" >/dev/null 2>&1; then
+              pg_ready=true
+              echo "PostgreSQL prêt."
+              break
+            fi
+            sleep 2
+          done
+          if [ "${pg_ready}" != "true" ]; then
+            echo "PostgreSQL non disponible après 60 secondes." >&2
+            exit 1
+          fi
+
+          echo "== Installation réelle de nss_network + exécution des tests (Odoo 18) =="
+          set +e
+          docker run --rm \
+            --name nss-network-ci-odoo \
+            --network "${NETWORK}" \
+            -e HOST="${DB_CONTAINER}" \
+            -e PORT=5432 \
+            -e USER="${DB_USER}" \
+            -e PASSWORD="${DB_PASSWORD}" \
+            -v "${GITHUB_WORKSPACE}/addons:/mnt/extra-addons:ro" \
+            odoo:18.0 \
+            --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons \
+            -d "${DB_NAME}" \
+            -i nss_network \
+            --without-demo=all \
+            --test-enable \
+            --test-tags /nss_network \
+            --stop-after-init \
+            2>&1 | tee odoo-nss-network-ci.log
+          ODOO_EXIT="${PIPESTATUS[0]}"
+          set -e
+
+          echo "== Code de sortie Odoo : ${ODOO_EXIT} =="
+          echo "odoo_exit_code=${ODOO_EXIT}" >> "$GITHUB_OUTPUT"
+          exit "${ODOO_EXIT}"
+
+      - name: Publier les logs Odoo (diagnostic)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nss-network-ci-odoo-log
+          path: odoo-nss-network-ci.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Nettoyage de l'environnement Docker temporaire
+        if: always()
+        shell: bash
+        run: |
+          docker rm -f nss-network-ci-odoo >/dev/null 2>&1 || true
+          docker rm -f nss-network-ci-db >/dev/null 2>&1 || true
+          docker network rm nss-network-ci-net >/dev/null 2>&1 || true

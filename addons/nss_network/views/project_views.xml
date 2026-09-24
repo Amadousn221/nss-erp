@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="edit_project_form_nss_network" model="ir.ui.view">
+        <field name="name">project.project.form.nss.network</field>
+        <field name="model">project.project</field>
+        <field name="inherit_id" ref="project.edit_project"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='settings']" position="after">
+                <page string="NSS Network" name="nss_network">
+                    <group>
+                        <field name="nss_country_membership_ids" widget="many2many_tags"/>
+                        <field name="nss_program_tag"/>
+                        <field name="nss_funder_id"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_task_form2_nss_network" model="ir.ui.view">
+        <field name="name">project.task.form.nss.network</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="nss_activity_type"/>
+                <field name="nss_location"/>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
