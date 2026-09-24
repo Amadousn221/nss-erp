@@ -323,9 +323,10 @@ techniques (France, Belgique, natifs `res.country`) ne représentent pas le
 périmètre géographique réel de NSS — les 10 pays seront chargés dans un
 checkpoint séparé.
 
-**Ces tests n'ont pas été exécutés dans une instance Odoo** (aucun serveur
-Odoo local ni connexion au VPS, conformément à la consigne). Ils sont
-prêts à être exécutés lors d'une installation contrôlée future.
+**Ces 15 tests ont été réellement exécutés** dans une instance Odoo 18
+chargée (GitHub Actions, Checkpoint 2.5B, cf. section « Validation réelle
+Odoo 18 ») : **0 échec, 0 erreur** sur le second run (après correction de
+2 anomalies réelles détectées sur le premier run). Exit code Odoo : `0`.
 
 ---
 
@@ -369,16 +370,19 @@ environnement isolé (cf. section 15).
 ## 14. Limites
 
 - Pas de record rules par pays (reporté, cf. section 10).
-- Pas d'exécution réelle des tests dans une instance Odoo (cf. section
-  12/13) ; validation Python statique désormais réelle (`py_compile`).
 - Le choix de licence `LGPL-3` est documenté mais n'a pas fait l'objet
   d'une revue juridique formelle — cohérent avec les pratiques Odoo
   Community/OCA déjà en usage dans le projet.
-- Les vues n'ont pas été testées visuellement (aucune instance Odoo
-  chargée) ; leur syntaxe a été vérifiée par comparaison directe avec les
-  vues natives Odoo 18 (balise `<list>`, structure `<notebook>`/`<page>`).
+- Les vues ont été chargées avec succès par Odoo 18 en CI (aucune
+  `ParseError`) mais n'ont pas été inspectées visuellement dans un
+  navigateur (pas d'accès UI depuis GitHub Actions, aucun port publié
+  conformément à la consigne).
 - Synchronisation `status = "archive"` ↔ `active = False` volontairement
   absente (cf. section 4) — `[À VALIDER PO]`.
+- Validation réalisée sur une base CI éphémère à vide (`--without-demo`,
+  aucune donnée réelle) ; le comportement avec les données réelles NSS
+  (10 pays, organisations) reste à valider lors d'un checkpoint dédié à
+  l'import de données, après validation PO explicite.
 
 ---
 
@@ -474,10 +478,20 @@ tests nss_network exécutés : 12 réussis, **3 erreurs réelles** :
 Aucun test n'a été désactivé ni affaibli pour obtenir ces corrections ; les
 deux anomalies étaient réelles et ont été corrigées à la racine.
 
-**Second run (après corrections) :** voir résultat ci-dessous.
+**Second run (commit `6d75314`, après corrections) : SUCCÈS réel.**
+Installation `nss_network` réussie (39 modules chargés, dont
+`nss_network` en position 37/39, manifest/dépendances/ORM/vues
+XML/héritages `res.partner`/`project.project`/`project.task` tous
+conformes), ACL chargées et vérifiées activement par
+`test_country_membership_unlink_forbidden_for_standard_user` (« Access
+Denied by ACLs for operation: unlink »). Résultat Odoo :
+**« 0 failed, 0 error(s) of 15 tests when loading database
+'nss_network_ci' »**. **Exit code Odoo : `0`.** Run :
+<https://github.com/Amadousn221/nss-erp/actions/runs/36067699565>.
 
-Nettoyage : effectué automatiquement à chaque run par l'étape dédiée
-(`if: always()`), aucune base ni conteneur CI persistant.
+Nettoyage : effectué automatiquement à chaque run (les deux) par l'étape
+dédiée (`if: always()`), aucune base ni conteneur CI persistant, aucune
+donnée réelle NSS, aucun accès au VPS `nss_test`.
 
 ---
 
