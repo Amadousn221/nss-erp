@@ -2,7 +2,7 @@
 
 **Référence :** NSS_ERP_06
 **Date :** 24 septembre 2026
-**Statut :** audit documentaire + sauvegarde baseline — **aucune installation fonctionnelle réalisée**
+**Statut :** audit documentaire + sauvegarde baseline — **aucune installation fonctionnelle réalisée** — décisions PO de clôture intégrées le 24 septembre 2026
 **Prérequis :** LOT 1B clôturé et fusionné dans `main` (`NSS_ERP_05_LOT1B_DEPLOIEMENT_TEST.md`)
 
 ---
@@ -141,23 +141,30 @@ Le module `l10n_sn` (« Sénégal - Accounting ») dépend de `l10n_syscohada` +
 
 **Décidé (technique) :** le socle SYSCOHADA existe nativement en Odoo 18 Community et couvre 8/10 pays NSS sans développement spécifique.
 
-**Reste `[POINT_A_VALIDER_PO]` :**
-- Société pilote / entité comptable exacte à créer dans Odoo (nom, adresse, régime).
-- Devise de base (hypothèse XOF — `NSS_ERP_02` ARCH-09, non confirmée).
-- Exercice fiscal (hypothèse année civile — ARCH-04, non confirmée).
-- Validation par la fonction comptable NSS que `l10n_syscohada`/`l10n_sn` couvrent réellement les obligations NSS (au-delà de la simple présence technique du module).
-- Traitement Ghana/Gambie : aucune localisation Odoo native identifiée dans ce lot pour ces deux pays — à traiter en analytique uniquement pour le pilote (pas de développement spécifique envisagé au MVP), sauf nouvelle décision PO.
+**Décisions PO du 24 septembre 2026 (clôture LOT 2A) :**
+- Société pilote : **« NSS ERP TEST »**, pays Sénégal, aucune donnée juridique réelle à ce stade.
+- Devise pilote : **XOF**.
+- Exercice fiscal pilote : **1er janvier → 31 décembre**.
+- Localisation retenue pour le TEST : **`l10n_syscohada` + `l10n_sn`** — validation de l'usage technique en TEST uniquement, **pas** une validation de conformité comptable officielle ; la fonction comptable NSS devra confirmer la suffisance fonctionnelle avant PROD.
+- Ghana / Gambie : confirmés en **dimensions analytiques uniquement** pour le MVP, aucune localisation comptable dédiée développée ou installée ; réévaluation en Phase 2 uniquement si besoin confirmé.
+- Licences OCA AGPL-3 (`account_financial_report`, `account_reconcile_oca`) : usage accepté pour l'environnement interne NSS TEST ; pas de modification ni redistribution hors projet sans nouvelle revue de licence.
+
+**Reste `[À VALIDER PO]` (non bloquant pour ce lot) :**
+- Coordinatrices/représentantes actuelles et organisations point focal par pays (ERP-Q10/ERP-Q11).
+- Données juridiques officielles de la société pilote avant tout passage en PROD.
 
 ---
 
 ## 9. Module spécifique `nss_network`
 
-**`[CONFLIT DE SOURCES]`** entre deux documents :
+**`[CONFLIT DE SOURCES — RÉSOLU PO 24 septembre 2026]`**
 
-- `NSS_ERP_02` §1 (Executive Summary) mentionne **un module NSS unique : `nss_network`**.
-- `NSS_ERP_02` §21 (« Développements NSS minimums », section corrigée lors du contrôle technique ChatGPT) recommande au contraire **trois modules séparés** : `nss_core` (obligatoire), `nss_project` (extension), `nss_account` (si nécessaire) — et déconseille explicitement un module unique combinant `contacts` + `project` + `account`.
+Ce lot avait initialement identifié un conflit entre deux sections de `NSS_ERP_02` :
 
-L'instruction explicite et datée du Product Owner pour ce LOT 2A (24 septembre 2026) tranche ce conflit pour la suite immédiate du projet : **le module spécifique retenu est `nss_network`**, et aucun autre module (`nss_core`, `nss_project`, etc.) ne doit être créé sans nouvelle décision PO. Conformément à la hiérarchie des sources de vérité (`CLAUDE.md` §3), cette décision explicite et récente du PO prévaut sur la recommandation documentaire antérieure. Ce conflit doit rester visible et n'est pas résolu silencieusement.
+- §1 (Executive Summary) mentionnait **un module NSS unique : `nss_network`**.
+- §21 (« Développements NSS minimums », section corrigée lors du contrôle technique ChatGPT) recommandait au contraire **trois modules séparés** : `nss_core`, `nss_project`, `nss_account`.
+
+**Décision définitive du Product Owner (24 septembre 2026) :** le module spécifique retenu pour le MVP est un **addon unique `nss_network`**, pouvant contenir plusieurs modèles Python, vues, règles de sécurité et extensions internes. `NSS_ERP_02` §21 a été mis à jour en conséquence pour supprimer la contradiction (la recommandation « petits modules séparés » ne s'applique plus). Aucun autre addon spécifique ne doit être créé sans nouvelle validation PO explicite.
 
 **Aucun code n'a été écrit pour `nss_network` dans ce lot** — audit de périmètre uniquement, à partir de `NSS_ERP_02` §6/§7/§8 :
 
@@ -220,7 +227,7 @@ Cet ordre est une proposition documentaire ; aucune installation n'a eu lieu.
 
 | # | Risque | Impact | Mitigation proposée |
 |---|---|---|---|
-| R1 | Conflit non résolu entre `nss_network` (module unique) et la recommandation `nss_core`/`nss_project`/`nss_account` de `NSS_ERP_02` §21 | Confusion à l'implémentation | Décision PO du 24/09/2026 fait foi (`nss_network`) ; mettre à jour `NSS_ERP_02` §21 lors d'une prochaine révision si le PO confirme définitivement |
+| R1 | *(Résolu)* Conflit entre `nss_network` et `nss_core`/`nss_project`/`nss_account` | — | Décision PO du 24/09/2026 : addon unique `nss_network` ; `NSS_ERP_02` §21 mis à jour en conséquence |
 | R2 | `account_financial_report` et `account_reconcile_oca`/`account_reconcile_model_oca` sous licence AGPL-3 | Contrainte de distribution si ces modules sont un jour redistribués hors usage interne | Non bloquant pour un usage interne NSS ; à documenter si distribution future |
 | R3 | `account_reconcile_oca` a une chaîne de 3 dépendances internes au même dépôt, module relativement jeune (réécriture récente avec `post_init_hook`) | Risque d'instabilité à l'installation | Tester isolément sur `nss_test` avant toute décision d'installation définitive (déjà la règle posée par `NSS_ERP_02` §20) |
 | R4 | Ghana et Gambie non couverts par SYSCOHADA | Écritures analytiques possibles mais pas de plan comptable localisé natif pour ces 2 pays | Traiter en analytique uniquement au MVP (mono-société) ; réévaluer en Phase 2 si besoin confirmé (cf. `NSS_ERP_02` §16 trajectoire progressive) |
@@ -230,32 +237,21 @@ Cet ordre est une proposition documentaire ; aucune installation n'a eu lieu.
 
 ## 13. Points à valider PO
 
+**Clôturés par décision PO du 24 septembre 2026** (voir `NSS_ERP_02` §2/§10/§16/§21/§25 mis à jour) : conflit `nss_network`, société pilote, devise, exercice fiscal, localisation SYSCOHADA/Sénégal pour le TEST, traitement Ghana/Gambie, licences OCA AGPL-3.
+
 ```
-POINTS_A_VALIDER_PO — LOT 2A
+POINTS_A_VALIDER_PO — LOT 2A (restants)
 
-1. Conflit de source : confirmer définitivement que "nss_network" (module unique)
-   remplace la recommandation nss_core/nss_project/nss_account de NSS_ERP_02 §21,
-   pour mise à jour formelle de NSS_ERP_02 lors d'une prochaine révision.
-
-2. Société pilote Odoo : nom exact, adresse, régime comptable à créer pour le TEST.
-
-3. Devise de base (hypothèse XOF, ARCH-09 NSS_ERP_02 — non confirmée).
-
-4. Exercice fiscal (hypothèse année civile, ARCH-04 NSS_ERP_02 — non confirmée).
-
-5. Validation par la fonction comptable NSS que l10n_syscohada / l10n_sn couvrent
-   réellement les obligations NSS (présence technique du module confirmée dans ce
-   lot, mais pas sa suffisance fonctionnelle).
-
-6. Traitement comptable de Ghana et Gambie (non couverts par SYSCOHADA) : rester en
-   analytique seul au MVP, ou besoin d'une localisation dédiée en Phase 2 ?
-
-7. Coordinatrices/représentantes actuelles et organisations point focal pour les
+1. Coordinatrices/représentantes actuelles et organisations point focal pour les
    10 pays (ERP-Q10/ERP-Q11 de NSS_ERP_01 — non bloquant pour l'architecture, mais
    nécessaire avant tout import de données réelles).
 
-8. Licence AGPL-3 de account_financial_report et account_reconcile_oca /
-   account_reconcile_model_oca : à noter, non bloquant pour un usage interne.
+2. Validation par la fonction comptable NSS que l10n_syscohada / l10n_sn couvrent
+   réellement les obligations NSS (présence technique confirmée ; conformité
+   officielle à valider avant PROD, pas avant).
+
+3. Données juridiques officielles de la société pilote (nom légal, adresse,
+   régime) avant tout passage en PROD.
 ```
 
 ---

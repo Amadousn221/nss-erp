@@ -31,12 +31,18 @@ Le MVP est découpé en **5 lots** avec dépendances claires.
 |---|---|---|
 | ERP-Q01 | Organisations + statistiques déclaratives de membres ; pas de membres individuels au MVP | VALIDÉ PO |
 | ERP-Q02 | Coordinatrice/représentante + organisation point focal éventuelle, indépendantes | VALIDÉ PO |
-| ERP-Q05 | Architecture comptable : comparer centralisée vs multi-entités, recommander trajectoire progressive | OUVERT — traité en section 16 |
+| ERP-Q05 | Architecture comptable : centralisée (Option A, mono-société) retenue pour le pilote | VALIDÉ PO 24/09/2026 — traité en section 16 |
 | ERP-Q15 | 10–20 utilisateurs max pour le pilote | VALIDÉ PO |
 | ERP-Q17 | VPS Hostinger avec Odoo Community | VALIDÉ PO |
 | ERP-Q24 | Comptabilité complète/officielle (pas seulement recettes/dépenses) | VALIDÉ PO |
 | — | Données fictives uniquement pour la première implémentation | VALIDÉ PO |
 | — | 10 pays NSS, liste dynamique | VALIDÉ PO |
+| — | Addon spécifique unique `nss_network` (remplace `nss_core`/`nss_project`/`nss_account`) | VALIDÉ PO 24/09/2026 — section 21 |
+| — | Société pilote « NSS ERP TEST », Sénégal, sans donnée juridique réelle | VALIDÉ PO 24/09/2026 |
+| — | Devise pilote XOF ; exercice fiscal civil (01/01–31/12) | VALIDÉ PO 24/09/2026 |
+| — | `l10n_syscohada` + `l10n_sn` pour le TEST (validation technique, pas de conformité officielle) | VALIDÉ PO 24/09/2026 |
+| — | Ghana/Gambie : dimensions analytiques uniquement au MVP | VALIDÉ PO 24/09/2026 |
+| — | Licences OCA AGPL-3 acceptées pour usage interne NSS TEST | VALIDÉ PO 24/09/2026 |
 
 ---
 
@@ -322,22 +328,24 @@ Le module `account` sert de base pour :
 
 ### Plan comptable
 
-[À VALIDER PO / COMPTABLE NSS]
+**[VALIDÉ PO — 24 septembre 2026] Pour le pilote TEST : `l10n_syscohada` + `l10n_sn`.**
 
-Le siège NSS étant au Sénégal, le référentiel probable est le SYSCOHADA révisé. Odoo 18 dispose d'une localisation Sénégal (`l10n_sn`), mais son contenu exact doit être vérifié en environnement TEST avant de conclure qu'il couvre toutes les obligations NSS.
+Le siège NSS étant au Sénégal, le référentiel retenu pour le pilote est le SYSCOHADA révisé (`l10n_syscohada`) complété par la localisation Sénégal native (`l10n_sn`). Cette décision valide l'**utilisation technique en TEST** uniquement — elle ne constitue **pas** une validation de conformité comptable officielle. Avant PROD, la fonction comptable NSS devra confirmer que cette configuration répond réellement aux obligations comptables de l'organisation.
 
-La localisation ne remplace pas la validation par la personne responsable de la comptabilité NSS.
+### Ghana / Gambie [VALIDÉ PO — 24 septembre 2026]
+
+Ghana et Gambie ne sont pas couverts par `l10n_syscohada` (référentiels anglophones non-OHADA). Pour le MVP, ces deux pays restent gérés comme **dimensions opérationnelles/analytiques uniquement** (plan analytique « Pays », voir section 11) — aucune localisation comptable spécifique Ghana/Gambie n'est développée ni installée dans le MVP. Une réévaluation n'aura lieu en Phase 2 que si un besoin est confirmé.
 
 ### Configuration pilote
 
-- 1 société Odoo pilote = NSS central
-- Devise principale proposée : XOF [À CONFIRMER PO]
+- **Société pilote [VALIDÉ PO — 24 septembre 2026] :** nom « NSS ERP TEST », pays Sénégal. Aucune donnée juridique réelle à ce stade (SIRET, RCCM, capital, etc.) ; les informations officielles seront validées avant PROD.
+- **Devise principale [VALIDÉ PO — 24 septembre 2026] : XOF.**
 - Multi-devise activé
 - Journaux de test : achats, banque, caisse, opérations diverses
-- Plans analytiques : Pays, Projet, Bailleur
+- Plans analytiques : Pays (dont Ghana/Gambie en analytique pur), Projet, Bailleur
 - Rapports financiers : OCA
 - Données comptables : 100 % fictives pendant le pilote
-- Exercice fiscal : [À VALIDER PO]
+- **Exercice fiscal [VALIDÉ PO — 24 septembre 2026] : année civile, 1er janvier → 31 décembre.**
 
 ---
 
@@ -517,7 +525,7 @@ Implémentation Odoo :
 
 ### Recommandation
 
-**Pilote / MVP → Option A (mono-société)**
+**Pilote / MVP → Option A (mono-société) — [VALIDÉ PO 24 septembre 2026]**
 
 Raisons :
 1. 10–20 utilisateurs, données fictives → la complexité multi-société n'est pas justifiée
@@ -697,37 +705,27 @@ Aucun module OCA n'est ajouté « au cas où ».
 
 ## 21. Développements NSS minimums
 
-### Recommandation corrigée : petits modules séparés
+### Décision définitive [VALIDÉ PO — 24 septembre 2026] : un addon unique `nss_network`
 
-Éviter un module unique `nss_network` dépendant à la fois de `contacts`, `project` et `account`.
+**Cette section annule et remplace la recommandation précédente (« petits modules séparés » `nss_core`/`nss_project`/`nss_account`), qui contredisait le choix structurant énoncé en section 1.** Le Product Owner tranche formellement en faveur d'un **addon Odoo unique : `nss_network`**.
 
-#### `nss_core` — obligatoire
-Dépendances : `base`, `contacts`, `mail`.
+Dépendances : `base`, `contacts`, `mail`, `project`, `account` (+ modules OCA validés le cas échéant).
 
-Contient :
+Un addon unique ne signifie pas un modèle unique : `nss_network` peut contenir plusieurs modèles Python, vues, règles de sécurité et extensions internes, organisés en sous-répertoires (`models/`, `views/`, `security/`, `data/`) comme n'importe quel module Odoo. Il contient notamment :
+
 - `nss.country.membership`
 - `nss.membership`
 - `nss.responsibility.history`
-- extensions NSS de `res.partner`
+- extensions NSS de `res.partner` (organisation, personne)
 - coordinatrice / organisation point focal
 - statistiques déclaratives de membres
+- extensions NSS de `project.project` / `project.task` (pays, bailleur, type/lieu d'activité)
+- règles d'accès (record rules) par pays
 - menus Réseau NSS
 - groupes NSS de base
 - données de démonstration fictives
 
-#### `nss_project` — extension
-Dépendances : `nss_core`, `project`.
-
-Contient :
-- pays NSS sur les projets
-- bailleur principal
-- type / lieu des activités
-- règles d'accès projet liées aux pays
-
-#### `nss_account` — uniquement si nécessaire
-Dépendances : `nss_core`, `account` (+ modules OCA validés).
-
-Contient uniquement les adaptations NSS impossibles par configuration.
+**Règle associée [VALIDÉ PO] :** aucun autre addon spécifique NSS ne doit être créé sans nouvelle validation explicite du PO.
 
 ### Source unique pour les statistiques membres
 
@@ -882,17 +880,19 @@ Aucune donnée réelle NSS n'est utilisée pendant le MVP. Toutes les données s
 | ID | Domaine | Situation actuelle | Décision nécessaire | Impact | Priorité |
 |---|---|---|---|---|---|
 | ARCH-01 | Version Odoo | **Recommandation corrigée : 18.0 Community** | Confirmer Odoo 18 pour le pilote | Compatibilité OCA / durée de support | CRITIQUE |
-| ARCH-02 | Architecture comptable | Recommandation : Option A mono-société pour le pilote | Valider le démarrage en mono-société | Toute la configuration comptable | CRITIQUE |
-| ARCH-03 | Plan comptable | Hypothèse SYSCOHADA / `l10n_sn` | Confirmer le référentiel comptable applicable à NSS | Configuration comptable | HAUTE |
-| ARCH-04 | Exercice fiscal | Hypothèse : année civile | Confirmer | Configuration comptable | HAUTE |
+| ARCH-02 | Architecture comptable | Option A mono-société pour le pilote | **VALIDÉ PO 24/09/2026 : mono-société « NSS ERP TEST », Sénégal, données fictives** | Toute la configuration comptable | VALIDÉ |
+| ARCH-03 | Plan comptable | Hypothèse SYSCOHADA / `l10n_sn` | **VALIDÉ PO 24/09/2026 : `l10n_syscohada` + `l10n_sn` pour le TEST — validation technique uniquement, pas de validation de conformité officielle avant PROD** | Configuration comptable | VALIDÉ (TEST) |
+| ARCH-04 | Exercice fiscal | Hypothèse : année civile | **VALIDÉ PO 24/09/2026 : 1er janvier → 31 décembre** | Configuration comptable | VALIDÉ |
 | ARCH-05 | Ressources VPS | Inconnues | Fournir : RAM totale, RAM disponible, CPU, disque disponible, OS, version PostgreSQL | Dimensionnement infrastructure | CRITIQUE |
 | ARCH-06 | Domaine | Non défini | Quel sous-domaine pour l'ERP NSS ? (ex: nss-test.mondomaine.tld) | Configuration Nginx + HTTPS | HAUTE |
 | ARCH-07 | Accès VPS | Non vérifié | Confirmer accès SSH root ou sudo pour l'installation | Déploiement | CRITIQUE |
 | ARCH-08 | Instance existante | Le PO a demandé une instance NSS séparée | **Considéré validé : ne pas modifier l'instance existante ; créer NSS à côté après audit ressources** | Isolation | VALIDÉ |
-| ARCH-09 | Devise principale | Hypothèse : XOF | Confirmer la devise de base de la comptabilité NSS | Configuration comptable | HAUTE |
+| ARCH-09 | Devise principale | Hypothèse : XOF | **VALIDÉ PO 24/09/2026 : XOF** | Configuration comptable | VALIDÉ |
 | ARCH-10 | Langue ERP | Hypothèse : français principal, anglais secondaire | Confirmer | Configuration i18n | MOYENNE |
 | ARCH-11 | Catégories de dépenses | Non documenté | Fournir les catégories budgétaires / types de dépenses utilisés par NSS (même approximatifs) pour configurer le plan comptable et les budgets | Comptabilité + budgets | HAUTE |
 | ARCH-12 | Workflow dépense | Non documenté | Valider ou ajuster le workflow proposé : saisie → justificatif → validation → paiement | Processus comptable | MOYENNE |
+| ARCH-13 | Ghana / Gambie (comptabilité) | Non couverts par SYSCOHADA | **VALIDÉ PO 24/09/2026 : dimensions analytiques uniquement pour le MVP ; réévaluation en Phase 2 si besoin confirmé** | Configuration comptable | VALIDÉ |
+| ARCH-14 | Licences OCA (AGPL-3) | `account_financial_report`, `account_reconcile_oca`, `account_reconcile_model_oca` identifiés en AGPL-3/LGPL-3 | **VALIDÉ PO 24/09/2026 : usage accepté pour l'environnement interne NSS TEST ; pas de modification ni redistribution hors projet sans nouvelle revue de licence** | Conformité licences | VALIDÉ |
 
 ---
 
@@ -905,7 +905,7 @@ Corrections structurantes apportées :
 3. **Budget OCA corrigé** : `account_budget_oca` appartient à `OCA/account-budgeting`.
 4. **Rapports financiers Community** : ajout de `account_financial_report`.
 5. **Rapprochement** : ajout d'options OCA à tester.
-6. **Modularité NSS** : `nss_core` + `nss_project` + `nss_account` si nécessaire.
+6. **Modularité NSS** : `nss_core` + `nss_project` + `nss_account` si nécessaire. **[ANNULÉ — VALIDÉ PO 24 septembre 2026, voir section 21] :** le PO tranche pour un addon unique `nss_network`. Cette correction ChatGPT n°6 ne s'applique plus.
 7. **Statistiques membres** : une seule source de vérité dans `nss.membership`.
 8. **Droits pays** : plusieurs pays autorisés par utilisateur et gestion des partenaires globaux.
 9. **VPS** : audit réel obligatoire avant installation ; suppression du dimensionnement trop optimiste.
