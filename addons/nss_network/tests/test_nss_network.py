@@ -8,7 +8,7 @@ Odoo et ne représentent pas le périmètre géographique réel de NSS
 """
 from datetime import date, timedelta
 
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, ValidationError
 from odoo.tests.common import TransactionCase, tagged
 
 
@@ -143,6 +143,48 @@ class TestNssNetwork(TransactionCase):
         self.assertFalse(past.is_current)
         self.assertFalse(future.is_current)
 
+    def test_responsibility_history_is_current_search(self):
+        person = self.env["res.partner"].create({"name": "Personne Recherche Fictive"})
+        today = date.today()
+        current = self.env["nss.responsibility.history"].create(
+            {
+                "partner_id": person.id,
+                "role": "Rôle Actuel Fictif",
+                "date_start": today - timedelta(days=10),
+            }
+        )
+        past = self.env["nss.responsibility.history"].create(
+            {
+                "partner_id": person.id,
+                "role": "Rôle Passé Fictif",
+                "date_start": today - timedelta(days=100),
+                "date_end": today - timedelta(days=50),
+            }
+        )
+        future = self.env["nss.responsibility.history"].create(
+            {
+                "partner_id": person.id,
+                "role": "Rôle Futur Fictif",
+                "date_start": today + timedelta(days=10),
+            }
+        )
+        history = self.env["nss.responsibility.history"]
+
+        current_records = history.search([("partner_id", "=", person.id), ("is_current", "=", True)])
+        self.assertIn(current, current_records)
+        self.assertNotIn(past, current_records)
+        self.assertNotIn(future, current_records)
+
+        not_current_records = history.search([("partner_id", "=", person.id), ("is_current", "=", False)])
+        self.assertIn(past, not_current_records)
+        self.assertIn(future, not_current_records)
+        self.assertNotIn(current, not_current_records)
+
+        not_current_via_ne = history.search([("partner_id", "=", person.id), ("is_current", "!=", True)])
+        self.assertIn(past, not_current_via_ne)
+        self.assertIn(future, not_current_via_ne)
+        self.assertNotIn(current, not_current_via_ne)
+
     def test_responsibility_history_date_constraint(self):
         person = self.env["res.partner"].create({"name": "Personne Fictive Dates"})
         with self.assertRaises(ValidationError):
@@ -181,3 +223,25 @@ class TestNssNetwork(TransactionCase):
         )
         self.assertEqual(task.nss_activity_type, "atelier")
         self.assertEqual(task.nss_location, "Lieu Fictif")
+
+    def test_country_membership_display_name_depends_on_country(self):
+        self.assertEqual(self.membership_fr.display_name, self.country_fr.display_name)
+        self.membership_fr.country_id = self.country_be
+        self.assertEqual(self.membership_fr.display_name, self.country_be.display_name)
+
+    def test_country_membership_unlink_forbidden_for_standard_user(self):
+        standard_user = self.env["res.users"].create(
+            {
+                "name": "Utilisateur Standard Fictif",
+                "login": "nss_standard_fictif_test",
+                "groups_id": [(6, 0, [self.env.ref("base.group_user").id])],
+            }
+        )
+        membership = self.env["nss.country.membership"].create(
+            {
+                "country_id": self.country_be.id,
+                "status": "observation",
+            }
+        )
+        with self.assertRaises(AccessError):
+            membership.with_user(standard_user).unlink()

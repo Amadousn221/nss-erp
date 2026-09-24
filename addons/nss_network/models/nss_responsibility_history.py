@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 
 class NssResponsibilityHistory(models.Model):
     _name = "nss.responsibility.history"
     _description = "NSS Responsibility History"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_start desc"
 
     partner_id = fields.Many2one(
@@ -34,7 +34,7 @@ class NssResponsibilityHistory(models.Model):
     is_current = fields.Boolean(
         string="En poste actuellement",
         compute="_compute_is_current",
-        store=True,
+        search="_search_is_current",
     )
     notes = fields.Text(string="Notes")
 
@@ -47,6 +47,28 @@ class NssResponsibilityHistory(models.Model):
                 and record.date_start <= today
                 and (not record.date_end or record.date_end >= today)
             )
+
+    def _search_is_current(self, operator, value):
+        if operator not in ("=", "!="):
+            raise UserError(
+                _("Seuls les opérateurs '=' et '!=' sont supportés pour la recherche sur « En poste actuellement ».")
+            )
+        today = fields.Date.context_today(self)
+        want_current = bool(value) if operator == "=" else not bool(value)
+        if want_current:
+            return [
+                ("date_start", "<=", today),
+                "|",
+                ("date_end", "=", False),
+                ("date_end", ">=", today),
+            ]
+        return [
+            "|",
+            ("date_start", ">", today),
+            "&",
+            ("date_end", "!=", False),
+            ("date_end", "<", today),
+        ]
 
     @api.constrains("date_start", "date_end")
     def _check_dates_coherence(self):

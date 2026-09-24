@@ -1,4 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_nss_country_membership_user,nss.country.membership.user,model_nss_country_membership,base.group_user,1,1,1,1
-access_nss_membership_user,nss.membership.user,model_nss_membership,base.group_user,1,1,1,1
-access_nss_responsibility_history_user,nss.responsibility.history.user,model_nss_responsibility_history,base.group_user,1,1,1,1
+access_nss_country_membership_user,nss.country.membership.user,model_nss_country_membership,base.group_user,1,1,1,0
+access_nss_membership_user,nss.membership.user,model_nss_membership,base.group_user,1,1,1,0
+access_nss_responsibility_history_user,nss.responsibility.history.user,model_nss_responsibility_history,base.group_user,1,1,1,0

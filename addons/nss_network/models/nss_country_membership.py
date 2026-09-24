@@ -97,6 +97,7 @@ class NssCountryMembership(models.Model):
                     _("La date de sortie ne peut pas être antérieure à la date d'entrée.")
                 )
 
+    @api.depends("country_id")
     def _compute_display_name(self):
         for record in self:
             record.display_name = record.country_id.display_name or _("Nouveau pays NSS")

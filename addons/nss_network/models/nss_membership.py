@@ -29,9 +29,9 @@ class NssMembership(models.Model):
         default="en_cours",
         tracking=True,
     )
-    application_date = fields.Date(string="Date de demande")
-    admission_date = fields.Date(string="Date d'adhésion effective")
-    last_renewal_date = fields.Date(string="Dernier renouvellement")
+    application_date = fields.Date(string="Date de demande", tracking=True)
+    admission_date = fields.Date(string="Date d'adhésion effective", tracking=True)
+    last_renewal_date = fields.Date(string="Dernier renouvellement", tracking=True)
 
     currency_id = fields.Many2one(
         "res.currency",
@@ -40,11 +40,11 @@ class NssMembership(models.Model):
         default=lambda self: self.env.ref("base.XOF", raise_if_not_found=False)
         or self.env.company.currency_id,
     )
-    fee_due = fields.Monetary(string="Cotisation due", currency_field="currency_id")
-    fee_paid = fields.Monetary(string="Cotisation payée", currency_field="currency_id")
+    fee_due = fields.Monetary(string="Cotisation due", currency_field="currency_id", tracking=True)
+    fee_paid = fields.Monetary(string="Cotisation payée", currency_field="currency_id", tracking=True)
 
-    member_count_declared = fields.Integer(string="Nombre de membres déclaré")
-    member_count_date = fields.Date(string="Date de la déclaration")
+    member_count_declared = fields.Integer(string="Nombre de membres déclaré", tracking=True)
+    member_count_date = fields.Date(string="Date de la déclaration", tracking=True)
 
     notes = fields.Text(string="Notes")
 
