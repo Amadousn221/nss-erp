@@ -114,7 +114,7 @@ class TestNssNetwork(TransactionCase):
 
     def test_responsibility_history_is_current(self):
         person = self.env["res.partner"].create({"name": "Personne Fictive"})
-        today = fields.Date.context_today(self)
+        today = fields.Date.context_today(self.env.user)
         current = self.env["nss.responsibility.history"].create(
             {
                 "partner_id": person.id,
@@ -146,7 +146,7 @@ class TestNssNetwork(TransactionCase):
 
     def test_responsibility_history_is_current_search(self):
         person = self.env["res.partner"].create({"name": "Personne Recherche Fictive"})
-        today = fields.Date.context_today(self)
+        today = fields.Date.context_today(self.env.user)
         current = self.env["nss.responsibility.history"].create(
             {
                 "partner_id": person.id,

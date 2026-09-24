@@ -119,8 +119,26 @@ archive), `join_date`, `exit_date`, `coordinator_id`, `focal_org_id`,
   Python, vérifie l'absence d'un autre enregistrement actif pour le même
   pays) ;
 - cohérence des dates : `exit_date >= join_date` lorsque les deux sont
-  renseignées, imposée à la fois par une contrainte Python (`ValidationError`
-  explicite) et par une contrainte SQL `CHECK` de sécurité en base.
+  renseignées, imposée par une contrainte Python (`ValidationError`
+  explicite).
+
+**Correction Checkpoint 2.5B (anomalie réelle détectée en CI) :** ce champ
+était initialement doublement contraint — par le `@api.constrains` Python
+ci-dessus **et** par une contrainte SQL `CHECK` (`join_before_exit_check`)
+présentée comme une « sécurité en base » redondante. L'exécution réelle
+des tests dans GitHub Actions a révélé que ce n'était pas de la défense en
+profondeur : le flush ORM (nécessaire pour obtenir l'identifiant de
+l'enregistrement) exécute l'INSERT SQL **avant** l'appel des méthodes
+`@api.constrains`, donc la contrainte `CHECK` interceptait systématiquement
+la violation en premier, remontant une erreur PostgreSQL brute
+(`psycopg2.errors.CheckViolation`) au lieu du `ValidationError` explicite
+attendu — rendant la vérification Python inatteignable en pratique via
+`create()`/`write()`. La contrainte SQL `CHECK` a donc été supprimée ;
+seule la contrainte Python subsiste, comme c'est déjà le cas pour les
+contraintes de dates de `nss.membership` et `nss.responsibility.history`
+(aucune contrainte SQL dupliquée sur ces modèles). La règle métier
+(cohérence des dates d'entrée/sortie) reste strictement identique, avec un
+seul point d'application au lieu de deux qui se faisaient concurrence.
 
 Aucun des 10 pays NSS n'est créé par ce module.
 
@@ -383,53 +401,83 @@ nouvelle validation PO explicite**, couvrir :
 
 ## Validation réelle Odoo 18
 
-**Statut : NON RÉALISÉE — `CLOUD_DOCKER_UNAVAILABLE`.**
+### Checkpoint 2.5 (environnement cloud Claude) : `CLOUD_DOCKER_UNAVAILABLE`
 
-Tentative (Checkpoint 2.5) d'exécution réelle de `nss_network` dans un
-environnement Docker Odoo 18 / PostgreSQL 16 temporaire et isolé (réseau
-`nss-network-ci-net`, conteneur `nss-network-ci-db`, aucun volume
-persistant, aucun port public), conformément à la consigne.
+Tentative d'exécution réelle de `nss_network` dans un environnement Docker
+Odoo 18 / PostgreSQL 16 temporaire, directement dans l'environnement cloud
+Claude. `docker --version` répondait mais `docker info` échouait (`failed
+to connect to the docker API at unix:///var/run/docker.sock`) : aucun
+démon Docker accessible. Conformément à la consigne, aucun contournement
+n'a été tenté et le VPS NSS n'a pas été utilisé comme solution de
+remplacement. Seules deux corrections mineures préalables ont été
+appliquées à ce stade : section 9 (Traçabilité) corrigée pour refléter que
+`nss.responsibility.history` hérite bien de `mail.thread` **et**
+`mail.activity.mixin`, et remplacement de `datetime.date.today()` par
+`fields.Date.context_today(...)` dans les tests `is_current` (voir
+correction ci-dessous : cette première tentative de correction contenait
+elle-même une erreur, détectée uniquement grâce à l'exécution réelle en
+CI).
 
-Vérification préalable, comme demandé, en exécutant uniquement :
+### Checkpoint 2.5B (GitHub Actions) : environnement Docker CI isolé
 
-```
-docker --version
-docker info
-```
+Décision : utiliser GitHub Actions (runner Ubuntu hébergé, démon Docker
+natif) comme environnement CI Docker isolé, sans toucher au VPS NSS.
 
-Résultat :
-- `docker --version` : le client Docker répond (CLI présente).
-- `docker info` : échec — `failed to connect to the docker API at
-  unix:///var/run/docker.sock: ... no such file or directory`. Aucun
-  démon Docker (`dockerd`) n'est accessible dans cet environnement cloud.
+Workflow créé : `.github/workflows/nss-network-ci.yml`, déclenché sur
+`pull_request` (`addons/nss_network/**`) et manuellement
+(`workflow_dispatch`). Il crée un réseau Docker éphémère
+`nss-network-ci-net`, démarre un conteneur PostgreSQL 16
+`nss-network-ci-db` (base `nss_network_ci`, utilisateur `odoo`, mot de
+passe généré aléatoirement par run via `openssl rand`, masqué dans les
+logs, jamais committé), attend sa disponibilité via `pg_isready`, puis
+lance un conteneur Odoo 18 éphémère (`--rm`, `addons/` monté en lecture
+seule sur `/mnt/extra-addons`, aucun port publié, réseau CI uniquement)
+avec `-i nss_network --without-demo=all --test-enable --test-tags
+/nss_network --stop-after-init`. Le code de sortie Odoo est capturé et
+propage l'échec du workflow (`set -Eeuo pipefail`). Nettoyage
+(conteneurs + réseau) exécuté systématiquement via `if: always()`.
 
-Conséquence : Docker n'est **pas utilisable** ici. Conformément à la
-consigne, aucune tentative de contournement n'a été faite (pas de
-démarrage manuel d'un démon Docker, pas de solution alternative), et le
-VPS NSS n'a été utilisé en aucune façon comme solution de remplacement.
-L'environnement CI temporaire (réseau, PostgreSQL, conteneur Odoo) n'a
-donc **pas été créé**, aucune installation réelle de `nss_network` n'a été
-tentée, et aucun test n'a été exécuté dans une instance Odoo lors de ce
-checkpoint.
+**Premier run (commit `248a173`) : ÉCHEC réel, anomalies confirmées.**
+L'installation elle-même a pleinement réussi (manifest, 39 modules dont
+`nss_network`, modèles ORM, vues XML, ACL, héritages `res.partner` /
+`project.project` / `project.task` tous chargés sans erreur). Sur les 15
+tests nss_network exécutés : 12 réussis, **3 erreurs réelles** :
 
-Seules les deux corrections mineures préalables (section 1 de la demande)
-ont été appliquées et validées statiquement :
-- section 9 (Traçabilité) corrigée pour refléter que
-  `nss.responsibility.history` hérite bien de `mail.thread` **et**
-  `mail.activity.mixin` (et non de `mail.thread` seul) ;
-- les tests `test_responsibility_history_is_current` et
-  `test_responsibility_history_is_current_search` utilisent désormais
-  `fields.Date.context_today(self)` au lieu de `datetime.date.today()`,
-  pour rester cohérents avec le contexte utilisateur/fuseau horaire Odoo
-  plutôt qu'avec l'horloge système Python — sans changement de logique
-  métier.
+1. `test_country_membership_date_constraint` : `psycopg2.errors.
+   CheckViolation` brut au lieu du `ValidationError` attendu. Cause
+   réelle : `nss.country.membership` portait à la fois un `@api.constrains`
+   Python et une contrainte SQL `CHECK` (`join_before_exit_check`) sur la
+   même règle (cohérence `join_date`/`exit_date`). Le flush ORM (INSERT
+   SQL, nécessaire pour obtenir l'identifiant du nouvel enregistrement)
+   s'exécute avant l'appel des méthodes `@api.constrains` : la contrainte
+   SQL interceptait donc systématiquement la violation en premier,
+   rendant la vérification Python inatteignable via `create()`/`write()`
+   — ce n'était pas de la défense en profondeur, mais du code mort.
+   **Correction :** suppression de la contrainte SQL `CHECK` redondante
+   dans `models/nss_country_membership.py` ; seule la contrainte Python
+   subsiste désormais (cf. section 4), cohérent avec le traitement déjà
+   appliqué aux contraintes de dates de `nss.membership` et
+   `nss.responsibility.history` (qui n'ont jamais eu de doublon SQL). Règle
+   métier strictement inchangée.
+2. et 3. `test_responsibility_history_is_current` et
+   `test_responsibility_history_is_current_search` : `AttributeError:
+   'TestNssNetwork' object has no attribute '_context'`. Cause réelle :
+   la correction du Checkpoint 2.5 avait remplacé `date.today()` par
+   `fields.Date.context_today(self)`, mais dans ces méthodes de test
+   `self` désigne l'instance `TestCase`, pas un recordset Odoo — ce n'est
+   qu'à l'exécution réelle que l'erreur est apparue, aucune exécution
+   locale n'ayant été possible avant ce checkpoint. **Correction :**
+   `fields.Date.context_today(self.env.user)` dans les deux tests (un
+   recordset valide disposant bien d'un `_context`). Aucun changement de
+   logique métier ni de test.
 
-Nettoyage : sans objet, aucun conteneur ni réseau Docker n'a été créé.
+Aucun test n'a été désactivé ni affaibli pour obtenir ces corrections ; les
+deux anomalies étaient réelles et ont été corrigées à la racine.
 
-L'exécution réelle des 15 tests dans une instance Odoo 18 chargée reste à
-faire lors d'un prochain checkpoint, dans un environnement disposant d'un
-démon Docker fonctionnel (ou d'un accès Odoo local équivalent), toujours
-sans toucher au VPS `nss_test`.
+**Second run (après corrections) :** voir résultat ci-dessous.
+
+Nettoyage : effectué automatiquement à chaque run par l'étape dédiée
+(`if: always()`), aucune base ni conteneur CI persistant.
 
 ---
 

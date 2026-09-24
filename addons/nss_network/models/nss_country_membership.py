@@ -54,14 +54,6 @@ class NssCountryMembership(models.Model):
         compute="_compute_organization_count",
     )
 
-    _sql_constraints = [
-        (
-            "join_before_exit_check",
-            "CHECK (exit_date IS NULL OR join_date IS NULL OR exit_date >= join_date)",
-            "La date de sortie ne peut pas être antérieure à la date d'entrée.",
-        ),
-    ]
-
     @api.depends("organization_ids")
     def _compute_organization_count(self):
         for record in self:
