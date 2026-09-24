@@ -221,10 +221,13 @@ Aucun projet ou activité réel ou fictif n'est créé par ce module.
 
 ## 9. Traçabilité
 
-`nss.country.membership`, `nss.membership` héritent de `mail.thread` +
-`mail.activity.mixin` ; `nss.responsibility.history` hérite de
-`mail.thread`. Les trois vues formulaire correspondantes intègrent le
-widget `<chatter/>` natif Odoo 18. `tracking=True` est posé uniquement sur
+`nss.country.membership`, `nss.membership` et `nss.responsibility.history`
+héritent tous les trois de `mail.thread` + `mail.activity.mixin` (ajout de
+`mail.activity.mixin` sur `nss.responsibility.history` lors de la revue
+corrective de la PR #10, cf. section 0/7). Les trois vues formulaire
+correspondantes intègrent le widget `<chatter/>` natif Odoo 18, qui
+affiche désormais aussi les activités planifiées pour les trois modèles.
+`tracking=True` est posé uniquement sur
 les champs métier significatifs (statut, dates clés, coordinatrice,
 organisation point focal, rôle, montants de cotisation, etc.), pas sur les
 champs techniques (`notes`, `active`). Aucun système documentaire
@@ -375,6 +378,58 @@ nouvelle validation PO explicite**, couvrir :
 - la conception des record rules par pays (affectation utilisateur ↔ pays) ;
 - le chargement des 10 pays NSS (données publiques, coordinations
   fictives), dans un checkpoint distinct dédié aux données.
+
+---
+
+## Validation réelle Odoo 18
+
+**Statut : NON RÉALISÉE — `CLOUD_DOCKER_UNAVAILABLE`.**
+
+Tentative (Checkpoint 2.5) d'exécution réelle de `nss_network` dans un
+environnement Docker Odoo 18 / PostgreSQL 16 temporaire et isolé (réseau
+`nss-network-ci-net`, conteneur `nss-network-ci-db`, aucun volume
+persistant, aucun port public), conformément à la consigne.
+
+Vérification préalable, comme demandé, en exécutant uniquement :
+
+```
+docker --version
+docker info
+```
+
+Résultat :
+- `docker --version` : le client Docker répond (CLI présente).
+- `docker info` : échec — `failed to connect to the docker API at
+  unix:///var/run/docker.sock: ... no such file or directory`. Aucun
+  démon Docker (`dockerd`) n'est accessible dans cet environnement cloud.
+
+Conséquence : Docker n'est **pas utilisable** ici. Conformément à la
+consigne, aucune tentative de contournement n'a été faite (pas de
+démarrage manuel d'un démon Docker, pas de solution alternative), et le
+VPS NSS n'a été utilisé en aucune façon comme solution de remplacement.
+L'environnement CI temporaire (réseau, PostgreSQL, conteneur Odoo) n'a
+donc **pas été créé**, aucune installation réelle de `nss_network` n'a été
+tentée, et aucun test n'a été exécuté dans une instance Odoo lors de ce
+checkpoint.
+
+Seules les deux corrections mineures préalables (section 1 de la demande)
+ont été appliquées et validées statiquement :
+- section 9 (Traçabilité) corrigée pour refléter que
+  `nss.responsibility.history` hérite bien de `mail.thread` **et**
+  `mail.activity.mixin` (et non de `mail.thread` seul) ;
+- les tests `test_responsibility_history_is_current` et
+  `test_responsibility_history_is_current_search` utilisent désormais
+  `fields.Date.context_today(self)` au lieu de `datetime.date.today()`,
+  pour rester cohérents avec le contexte utilisateur/fuseau horaire Odoo
+  plutôt qu'avec l'horloge système Python — sans changement de logique
+  métier.
+
+Nettoyage : sans objet, aucun conteneur ni réseau Docker n'a été créé.
+
+L'exécution réelle des 15 tests dans une instance Odoo 18 chargée reste à
+faire lors d'un prochain checkpoint, dans un environnement disposant d'un
+démon Docker fonctionnel (ou d'un accès Odoo local équivalent), toujours
+sans toucher au VPS `nss_test`.
 
 ---
 

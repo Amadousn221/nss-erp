@@ -8,6 +8,7 @@ Odoo et ne représentent pas le périmètre géographique réel de NSS
 """
 from datetime import date, timedelta
 
+from odoo import fields
 from odoo.exceptions import AccessError, ValidationError
 from odoo.tests.common import TransactionCase, tagged
 
@@ -113,7 +114,7 @@ class TestNssNetwork(TransactionCase):
 
     def test_responsibility_history_is_current(self):
         person = self.env["res.partner"].create({"name": "Personne Fictive"})
-        today = date.today()
+        today = fields.Date.context_today(self)
         current = self.env["nss.responsibility.history"].create(
             {
                 "partner_id": person.id,
@@ -145,7 +146,7 @@ class TestNssNetwork(TransactionCase):
 
     def test_responsibility_history_is_current_search(self):
         person = self.env["res.partner"].create({"name": "Personne Recherche Fictive"})
-        today = date.today()
+        today = fields.Date.context_today(self)
         current = self.env["nss.responsibility.history"].create(
             {
                 "partner_id": person.id,
