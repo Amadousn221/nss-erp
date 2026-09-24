@@ -109,12 +109,17 @@ Ces valeurs restent uniquement dans les fichiers non versionnés du VPS
 
 ---
 
-## 8. Points à valider PO
+## 8. Sécurisation du compte administrateur (Checkpoint 6)
+
+Compte administrateur Odoo sécurisé manuellement par le Product Owner — 24 septembre 2026.
+
+---
+
+## 9. Points à valider PO
 
 Aucun point bloquant restant pour ce lot. Rappel : NSS ERP TEST reste un
-pilote — aucune donnée réelle NSS, aucun identifiant `admin/admin`
-modifié, aucun module NSS ou OCA installé à ce stade (hors périmètre de
-ce checkpoint).
+pilote — aucune donnée réelle NSS, aucun module NSS ou OCA installé à ce
+stade (hors périmètre de ce checkpoint).
 
 ---
 
