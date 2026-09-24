@@ -4,7 +4,7 @@
 **Version :** 1.1 — contrôle technique ChatGPT
 **Date :** 23 septembre 2026
 **Auteur :** Architecte fonctionnel (Claude Opus)
-**Statut :** corrigé après contrôle technique — prêt pour validation PO avant implémentation
+**Statut :** [VALIDÉ PO — 24 septembre 2026]
 **Prérequis :** NSS_ERP_01 V1.2 validée
 
 ---
