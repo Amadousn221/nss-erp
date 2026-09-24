@@ -18,8 +18,10 @@ volumes:
 ```
 
 Il est monté **en lecture seule** dans le conteneur, à l'emplacement
-`/mnt/extra-addons`, référencé dans `addons_path` de
-`deploy/nss-test/config/odoo.conf`.
+`/mnt/extra-addons`, référencé dans `addons_path` du template versionné
+`deploy/nss-test/config/odoo.conf.example` — et donc, en LOT 1B, du
+fichier réellement monté `deploy/nss-test/config/odoo.local.conf` (non
+versionné, créé à partir de ce template).
 
 ## Convention future
 
