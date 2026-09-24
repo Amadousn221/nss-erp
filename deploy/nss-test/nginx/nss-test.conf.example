@@ -1,0 +1,71 @@
+# EXEMPLE — non déployé, non installé sur le VPS.
+# Préparé au Checkpoint 5A (LOT 1B) pour documentation uniquement.
+#
+# À adapter puis installer manuellement en Checkpoint 5B, après :
+#   - décision PO sur ERP_TEST_DOMAIN (remplacer ci-dessous) ;
+#   - création du record DNS A correspondant ;
+#   - copie vers /etc/nginx/sites-available/ sur le VPS ;
+#   - `nginx -t` puis `systemctl reload nginx` ;
+#   - `certbot --nginx -d ERP_TEST_DOMAIN` (ajoute les directives SSL
+#     `listen 443 ssl` / `ssl_certificate*` automatiquement, comme observé
+#     pour mpsenegal.com et n8n.atta-africa.com).
+#
+# Odoo NSS TEST n'est jamais exposé directement : seul Nginx écoute sur
+# 80/443, et proxifie vers 127.0.0.1:8070 (nss_test_odoo), qui n'écoute
+# que sur localhost (vérifié au Checkpoint 4).
+
+# Websocket Odoo 18 (endpoint /websocket, même processus car workers=0
+# dans la configuration NSS actuelle — pas de port gevent séparé requis
+# pour ce pilote ; à revoir si `workers` > 0 en production).
+map $http_upgrade $connection_upgrade_nss {
+    default upgrade;
+    ""      close;
+}
+
+server {
+    listen 80;
+    server_name ERP_TEST_DOMAIN;
+
+    # Redirection HTTPS ajoutée automatiquement par Certbot au Checkpoint 5B.
+    # Laissé en HTTP simple ici pour permettre la validation ACME initiale.
+
+    proxy_read_timeout 720s;
+    proxy_connect_timeout 720s;
+    proxy_send_timeout 720s;
+    client_max_body_size 100m;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+
+    access_log /var/log/nginx/nss-test-access.log;
+    error_log  /var/log/nginx/nss-test-error.log;
+
+    # Websocket / longpolling Odoo 18
+    location /websocket {
+        proxy_pass http://127.0.0.1:8070;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade_nss;
+    }
+
+    location ~* /web/static/ {
+        proxy_cache_valid 200 90m;
+        proxy_buffering on;
+        expires 864000;
+        proxy_pass http://127.0.0.1:8070;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8070;
+    }
+}
+
+# Après `certbot --nginx -d ERP_TEST_DOMAIN` (Checkpoint 5B uniquement),
+# Certbot ajoute ici un bloc `listen 443 ssl` avec les chemins
+# /etc/letsencrypt/live/ERP_TEST_DOMAIN/{fullchain,privkey}.pem,
+# `include options-ssl-nginx.conf`, `ssl_dhparam ...`, et transforme ce
+# bloc port 80 en redirection 301 vers https — pattern déjà utilisé pour
+# mpsenegal.com et n8n.atta-africa.com sur ce même VPS.
