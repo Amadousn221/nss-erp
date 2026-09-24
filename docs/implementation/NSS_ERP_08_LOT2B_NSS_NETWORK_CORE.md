@@ -355,15 +355,17 @@ local à l'époque) :
 | Recherche de secrets | `grep` récursif (password/passwd/private key/secret/api_key/token) | **PASS** — aucune occurrence |
 | Recherche de données réelles | `grep` récursif sur les noms des 10 pays NSS validés (Bénin, Burkina Faso, Côte d'Ivoire, Gambie, Ghana, Guinée, Guinée-Bissau, Mali, Sénégal, Togo) | **PASS** — aucune occurrence dans l'addon |
 
-**Limite documentée persistante :** aucun chargement effectif du module
-par un serveur Odoo n'a été effectué, faute d'instance Odoo locale et
-conformément à la consigne de ne pas déployer sur le VPS ni installer le
-module. `py_compile` garantit l'absence d'erreur de syntaxe Python mais ne
-vérifie ni le chargement ORM (modèles, vues, dépendances croisées) ni
-l'exécution effective des tests unitaires. La vérification complète
-(absence d'erreur de chargement, exécution réelle des 15 tests) ne pourra
-être confirmée qu'au moment d'une installation contrôlée future sur un
-environnement isolé (cf. section 15).
+**Complément — validation réelle (Checkpoint 2.5B) :** les vérifications
+statiques ci-dessus (`py_compile`, XML, CSV, secrets, données réelles) ont
+depuis été complétées par une validation réelle de `nss_network` dans une
+instance Odoo 18 effectivement chargée, avec PostgreSQL 16, exécutée dans
+GitHub Actions sur une base CI éphémère (aucune installation sur le VPS,
+aucune donnée réelle NSS) : modèles ORM chargés, vues XML chargées, ACL
+chargées et vérifiées activement, et **15 tests sur 15 réussis** (exit
+code Odoo `0`). Le détail complet (environnement, anomalies détectées et
+corrigées, résultat) est documenté dans la section « Validation réelle
+Odoo 18 » ci-dessous ; cette limite (absence de chargement effectif par un
+serveur Odoo) est donc désormais levée.
 
 ---
 
