@@ -1,0 +1,58 @@
+[options]
+; NSS ERP — TEMPLATE de configuration Odoo 18 Community, environnement TEST
+;
+; Ce fichier (odoo.conf.example) est le TEMPLATE versionné dans Git, SANS
+; secret réel. Il ne doit jamais être monté tel quel dans le conteneur.
+;
+; En LOT 1B, il sera copié sur le VPS sous le nom :
+;   deploy/nss-test/config/odoo.local.conf
+; (fichier non versionné, ignoré par .gitignore via **/odoo.local.conf)
+; et complété avec le vrai mot de passe maître Odoo, par exemple :
+;   admin_passwd = <secret généré localement, jamais commité>
+;
+; Les identifiants PostgreSQL, eux, restent injectés via les variables
+; d'environnement HOST / USER / PASSWORD du conteneur nss-odoo (voir
+; compose.yaml et .env / .env.example) — rien à ajouter ici pour cette
+; partie.
+;
+; C'est deploy/nss-test/config/odoo.local.conf (pas ce template) qui est
+; monté en lecture seule dans le conteneur nss-odoo (voir compose.yaml).
+
+; Addons natifs Odoo (fournis par l'image officielle) + addons NSS
+; spécifiques, montés séparément en lecture seule (voir addons/README.md).
+addons_path = /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons
+
+; Répertoire de données Odoo (filestore, sessions) — persistant via le
+; volume nommé nss_odoo_data (voir compose.yaml), jamais partagé avec
+; l'Odoo 19 existant.
+data_dir = /var/lib/odoo
+
+; Une seule base NSS TEST, verrouillée : pas de sélecteur de base public,
+; pas d'accès à une base extérieure au conteneur PostgreSQL NSS.
+db_name = nss_test
+dbfilter = ^nss_test$
+list_db = False
+
+; Prépare la future intégration derrière le Nginx existant sur le VPS
+; (reverse proxy HTTPS), sans que cela ne soit configuré dans ce lot.
+proxy_mode = True
+
+; Pas de données de démonstration Odoo : NSS TEST n'utilisera que des
+; données fictives définies par l'équipe projet (conformément à
+; NSS_ERP_02 §23).
+without_demo = all
+
+; Mode mono-processus : suffisant pour un pilote à faible charge avec
+; données fictives (cf. NSS_ERP_03 §13). À revoir si le besoin évolue.
+workers = 0
+
+; Logs envoyés sur la sortie standard du conteneur (consultables via
+; `docker compose logs`), pas de fichier de log dans l'image ou un volume
+; dédié à ce stade.
+logfile =
+log_level = info
+
+; Mot de passe maître Odoo — À DÉFINIR UNIQUEMENT dans odoo.local.conf
+; (non versionné), jamais dans ce template. Exemple de ligne à ajouter
+; dans odoo.local.conf en LOT 1B (valeur réelle générée sur le VPS) :
+; admin_passwd = CHANGE_ME_LOCAL_ONLY
