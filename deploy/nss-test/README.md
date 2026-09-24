@@ -68,7 +68,7 @@ Le port `8070` a été confirmé libre sur le VPS lors de l'audit LOT 0
 |---|---|---|
 | `nss_pg_data` | volume Docker nommé | Données PostgreSQL NSS |
 | `nss_odoo_data` | volume Docker nommé | `data_dir` Odoo (filestore, sessions) |
-| `./config/odoo.conf` | bind mount (lecture seule) | Configuration Odoo NSS |
+| `./config/odoo.local.conf` | bind mount (lecture seule) | Configuration Odoo NSS **réelle**, non versionnée (créée en LOT 1B à partir de `config/odoo.conf.example`) |
 | `../../addons` | bind mount (lecture seule) | Modules NSS spécifiques (voir `addons/README.md`) |
 
 Aucun volume générique : tous les noms sont préfixés `nss_` pour éviter
@@ -81,20 +81,44 @@ Réseau Docker dédié `nss_test_net` (driver `bridge`), déclaré dans
 le nom de service interne (`nss-db:5432`) — jamais via le port PostgreSQL
 de l'hôte.
 
-## 7. Variables nécessaires (`.env`)
+`nss-db` déclare un `healthcheck` basé sur `pg_isready` ; `nss-odoo` a une
+dépendance `condition: service_healthy` sur `nss-db`, en complément du
+mécanisme `wait-for-psql` déjà présent dans l'entrypoint de l'image
+officielle Odoo. `nss-odoo` ne démarre donc pas tant que PostgreSQL NSS
+n'est pas prêt à accepter des connexions.
 
-Copier `.env.example` en `.env` (même répertoire) et renseigner de
-vraies valeurs avant tout démarrage :
+## 7. Variables nécessaires (`.env` et `odoo.local.conf`)
+
+Deux fichiers non versionnés à créer avant tout démarrage, à partir des
+templates fournis :
+
+**a) `.env`** (copié depuis `.env.example`) — identifiants PostgreSQL
+uniquement :
 
 ```
 POSTGRES_DB=nss_test
 POSTGRES_USER=nss_odoo
 POSTGRES_PASSWORD=<mot de passe fort>
-ODOO_ADMIN_PASSWD=<mot de passe fort>
 ```
 
-**`.env` ne doit jamais être commité.** Il est ignoré par `.gitignore`
-(`.env`, `.env.*`, `**/.env`).
+**b) `config/odoo.local.conf`** (copié depuis `config/odoo.conf.example`)
+— configuration Odoo complète, avec en plus une ligne `admin_passwd` :
+
+```
+[options]
+... (contenu identique à odoo.conf.example)
+admin_passwd = <mot de passe fort, différent de POSTGRES_PASSWORD>
+```
+
+**Ni `.env` ni `config/odoo.local.conf` ne doivent jamais être commités.**
+Ils sont ignorés par `.gitignore` :
+- `.env`, `.env.*`, `**/.env` (avec exception explicite `!**/.env.example`)
+- `**/odoo.local.conf`
+
+Voir aussi section 6 (Secrets) de `NSS_ERP_04_LOT1_DOCKER_PREPARATION.md`
+pour la justification de ce choix (pourquoi `admin_passwd` n'est plus
+géré via `.env`/variable d'environnement, mais directement dans le
+fichier de configuration Odoo).
 
 ## 8. Comment valider la configuration (sans démarrer)
 
@@ -112,16 +136,45 @@ En LOT 1A, cette validation a été faite par relecture manuelle
 `docs/implementation/NSS_ERP_04_LOT1_DOCKER_PREPARATION.md` section 12
 pour le détail.
 
-## 9. Procédure future de démarrage (LOT 1B — non exécutée ici)
+## 9. Procédure future de démarrage (LOT 1B UNIQUEMENT — NON EXÉCUTÉ)
+
+**Important :** une base PostgreSQL vide n'est pas une base Odoo
+initialisée. Le premier démarrage doit suivre une séquence contrôlée
+d'initialisation, pas un simple `docker compose up -d` global.
 
 ```bash
 cd deploy/nss-test
-cp .env.example .env        # puis éditer .env avec de vraies valeurs
-docker compose config       # validation
-docker compose up -d        # démarrage (LOT 1B uniquement, après validation PO)
+
+# 0. Préparer les fichiers non versionnés
+cp .env.example .env                              # éditer avec de vraies valeurs
+cp config/odoo.conf.example config/odoo.local.conf # éditer : ajouter admin_passwd = <secret>
+
+# 1. Valider la configuration Compose (syntaxe + interpolation)
+docker compose config
+
+# A. Démarrer UNIQUEMENT PostgreSQL NSS
+docker compose up -d nss-db
+
+# B. Attendre que PostgreSQL soit prêt (le healthcheck pg_isready du
+#    service nss-db le garantit ; vérification manuelle possible) :
+docker compose ps nss-db
+# STATUS doit afficher "healthy" avant de continuer
+
+# C. Initialisation Odoo contrôlée de la base nss_test : module `base`
+#    uniquement, sans données de démonstration, arrêt automatique après
+#    initialisation (ne démarre pas le serveur web) :
+docker compose run --rm nss-odoo \
+  odoo --config /etc/odoo/odoo.conf \
+       -d nss_test -i base --without-demo=all --stop-after-init
+
+# D. Seulement après succès de l'étape C, démarrer nss-odoo normalement :
+docker compose up -d nss-odoo
 docker compose ps
 docker compose logs -f nss-odoo
 ```
+
+Cette séquence (A → B → C → D) est documentée ici pour préparation du
+LOT 1B ; **aucune de ces commandes n'a été exécutée dans ce lot**.
 
 ## 10. Procédure future d'arrêt (LOT 1B — non exécutée ici)
 
@@ -139,9 +192,11 @@ docker compose down          # arrête et supprime les conteneurs, garde les vol
 - Odoo NSS est publié uniquement sur `127.0.0.1:8070` : pas d'accès direct
   depuis Internet tant que le reverse proxy Nginx n'est pas configuré
   (lot ultérieur, hors LOT 1A).
-- Aucun secret réel dans le dépôt Git : `odoo.conf` ne contient ni mot de
-  passe PostgreSQL ni `admin_passwd` ; ceux-ci sont injectés au démarrage
-  du conteneur via `.env` (non versionné).
+- Aucun secret réel dans le dépôt Git : `config/odoo.conf.example` (versionné)
+  ne contient ni mot de passe PostgreSQL ni `admin_passwd`. Le mot de passe
+  PostgreSQL est fourni via `.env` (non versionné) ; `admin_passwd` est
+  défini directement dans `config/odoo.local.conf` (non versionné, créé en
+  LOT 1B à partir du template).
 - `list_db = False` et `dbfilter` restreignent Odoo à la seule base
   `nss_test` : pas de sélecteur de base exposé publiquement.
 - Aucune image, configuration ou volume ne référence l'Odoo 19 existant,

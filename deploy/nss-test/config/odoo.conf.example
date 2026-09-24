@@ -1,14 +1,22 @@
 [options]
-; NSS ERP — configuration Odoo 18 Community, environnement TEST
+; NSS ERP — TEMPLATE de configuration Odoo 18 Community, environnement TEST
 ;
-; AUCUN secret dans ce fichier (versionné dans Git) :
-;   - identifiants PostgreSQL : injectés via les variables d'environnement
-;     HOST / USER / PASSWORD du conteneur nss-odoo (voir compose.yaml) ;
-;   - mot de passe maître Odoo (admin_passwd) : injecté via l'argument de
-;     démarrage du conteneur, interpolé par Docker Compose depuis .env
-;     (voir compose.yaml et section 6 de NSS_ERP_04).
+; Ce fichier (odoo.conf.example) est le TEMPLATE versionné dans Git, SANS
+; secret réel. Il ne doit jamais être monté tel quel dans le conteneur.
 ;
-; Ce fichier est monté en lecture seule dans le conteneur nss-odoo.
+; En LOT 1B, il sera copié sur le VPS sous le nom :
+;   deploy/nss-test/config/odoo.local.conf
+; (fichier non versionné, ignoré par .gitignore via **/odoo.local.conf)
+; et complété avec le vrai mot de passe maître Odoo, par exemple :
+;   admin_passwd = <secret généré localement, jamais commité>
+;
+; Les identifiants PostgreSQL, eux, restent injectés via les variables
+; d'environnement HOST / USER / PASSWORD du conteneur nss-odoo (voir
+; compose.yaml et .env / .env.example) — rien à ajouter ici pour cette
+; partie.
+;
+; C'est deploy/nss-test/config/odoo.local.conf (pas ce template) qui est
+; monté en lecture seule dans le conteneur nss-odoo (voir compose.yaml).
 
 ; Addons natifs Odoo (fournis par l'image officielle) + addons NSS
 ; spécifiques, montés séparément en lecture seule (voir addons/README.md).
@@ -43,3 +51,8 @@ workers = 0
 ; dédié à ce stade.
 logfile =
 log_level = info
+
+; Mot de passe maître Odoo — À DÉFINIR UNIQUEMENT dans odoo.local.conf
+; (non versionné), jamais dans ce template. Exemple de ligne à ajouter
+; dans odoo.local.conf en LOT 1B (valeur réelle générée sur le VPS) :
+; admin_passwd = CHANGE_ME_LOCAL_ONLY
