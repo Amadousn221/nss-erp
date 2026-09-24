@@ -218,6 +218,8 @@ Justification à partir des mesures réelles :
 
 ## 14. Architecture NSS TEST proposée
 
+> **Note :** cette proposition initiale (installation via environnement virtuel Python) est **remplacée** par l'architecture Docker Compose décrite dans la section dédiée « Architecture d'isolation validée pour LOT 1 » ci-après, validée par le PO le 24 septembre 2026. Elle est conservée ici à titre de trace de l'analyse initiale.
+
 Sans rien créer, proposition adaptée à l'environnement réellement observé :
 
 | Élément | Proposition |
@@ -239,6 +241,109 @@ Sans rien créer, proposition adaptée à l'environnement réellement observé :
 | Sauvegardes | script `pg_dump` + `tar` du filestore, cron dédié à NSS, copie externe — à mettre en place dès le LOT 1 puisqu'aucune infrastructure de sauvegarde n'existe (section 10) |
 
 Cette proposition respecte le principe d'isolation stricte déjà posé dans `NSS_ERP_02` (section 17), renforcé ici par le fait que l'instance existante sert des clients réels.
+
+---
+
+## Architecture d'isolation validée pour LOT 1
+
+**Statut : [VALIDÉ PO — 24 septembre 2026].** Cette section remplace la proposition de la section 14 (installation via environnement virtuel Python) par une architecture **Docker Compose**, conformément à la décision du PO. Aucun élément décrit ici n'a été installé, lancé ou créé sur le VPS : il s'agit d'une proposition documentée, en attente du LOT 1.
+
+### Pourquoi Docker est retenu
+
+- **Docker est déjà présent et opérationnel** sur ce VPS (version 29.5.1, `docker.service` actif), utilisé en production pour n8n. Retenir Docker pour NSS ne nécessite donc **aucune installation de moteur supplémentaire** — seul un projet `docker-compose` propre à NSS sera ajouté en LOT 1.
+- Docker Compose permet une **isolation complète** (processus, réseau, système de fichiers) entre l'Odoo 19 existant et l'Odoo 18 NSS, sans dépendre d'un environnement virtuel Python partagé avec le système hôte.
+- Cela évite tout conflit avec le paquet système `odoo` 19.0 déjà installé via `apt` (un seul paquet `odoo` peut exister nativement sur l'hôte ; un conteneur contourne cette limite proprement).
+- Le cycle de vie (démarrage, arrêt, mise à jour, suppression) de NSS TEST devient entièrement indépendant de l'instance existante : `docker compose down` sur le projet NSS n'a aucun effet sur `odoo.service`, sur les conteneurs n8n, ni sur PostgreSQL natif.
+- La migration future TEST → PROD est facilitée : le même `docker-compose.yml` (avec un fichier `.env` différent) peut être redéployé pour la PROD, conformément à la logique déjà prévue par `NSS_ERP_02` (bases et configuration séparées, pas de duplication brute).
+
+### Architecture des containers
+
+Deux services dans un même projet Compose dédié à NSS :
+
+| Service | Image de base | Rôle |
+|---|---|---|
+| `nss-odoo` | `odoo:18.0` (image officielle Community) | Application Odoo 18, avec les addons NSS montés en volume |
+| `nss-db` | `postgres:16` | Base de données PostgreSQL dédiée à NSS, **totalement séparée** du cluster PostgreSQL natif `16-main` existant |
+
+**Point important :** contrairement à la proposition initiale de la section 14 (réutiliser le cluster PostgreSQL natif avec un rôle dédié), l'architecture Docker isole PostgreSQL dans son propre conteneur. Cela renforce l'isolation demandée par le PO : aucune connexion réseau ni aucun partage de processus entre `nss-db` et le PostgreSQL natif qui sert les 3 bases clientes tierces.
+
+### Volumes
+
+Tous les volumes sont nommés et dédiés au projet NSS (aucun volume partagé avec n8n ou l'Odoo existant) :
+
+| Volume | Contenu | Type |
+|---|---|---|
+| `nss_pg_data` | Données PostgreSQL de `nss-db` | Volume Docker nommé |
+| `nss_odoo_filestore` | Filestore Odoo (pièces jointes, documents) | Volume Docker nommé |
+| `./addons` (bind mount) | Modules NSS spécifiques (`nss_core`, `nss_project`…) | Bind mount en lecture, répertoire dédié sur l'hôte (ex. `/opt/nss/addons/`) — permet l'édition/déploiement des modules sans reconstruire l'image |
+| `./config` (bind mount) | Fichier `odoo.conf` propre à NSS (sans secret dedans — les secrets passent par `.env`) | Bind mount, répertoire dédié (ex. `/opt/nss/config/`) |
+
+### Réseau
+
+- Un **réseau Docker dédié** (bridge), ex. `nss_network`, créé par le `docker-compose.yml` du projet NSS.
+- Seuls les services `nss-odoo` et `nss-db` sont rattachés à ce réseau.
+- **Aucune connexion** de ce réseau vers le réseau Docker utilisé par les conteneurs n8n existants (`n8n` et `n8n-connect`), ni vers PostgreSQL natif (`16-main`), ni vers l'Odoo 19 existant.
+- `nss-odoo` communique avec `nss-db` uniquement via le nom de service interne au réseau Compose (`nss-db:5432`), jamais via le port 5432 natif de l'hôte.
+
+### Ports
+
+- Le port interne du conteneur `nss-odoo` (8069 à l'intérieur du conteneur) est mappé **uniquement sur `127.0.0.1:8070`** de l'hôte (`127.0.0.1:8070:8069`), jamais sur `0.0.0.0`.
+- Ce choix corrige explicitement l'écart observé sur l'instance existante (port 8069 exposé sur toutes les interfaces, section 9) : NSS ne doit pas reproduire cette exposition directe.
+- Le port PostgreSQL du conteneur `nss-db` (5432 interne) **n'est pas publié** sur l'hôte du tout — seul `nss-odoo` y accède via le réseau Docker interne.
+- Le port `8070` est confirmé libre sur l'hôte (section 9).
+
+### Stratégie de secrets
+
+- Un fichier **`.env` local, non versionné**, à la racine du projet Compose NSS (ex. `/opt/nss/.env`), contenant : mot de passe PostgreSQL du conteneur `nss-db`, `admin_passwd` Odoo, et toute autre variable sensible.
+- Le `docker-compose.yml` référence ces valeurs via des variables (`${POSTGRES_PASSWORD}`, etc.), jamais en clair dans le fichier versionné.
+- `.env` est déjà couvert par les motifs `.env` / `.env.*` du `.gitignore` du dépôt NSS (section 4/mise en place initiale) — à répliquer dans un `.gitignore` local si le répertoire `/opt/nss/` est lui-même un jour suivi par un outil de version sur le VPS (non prévu actuellement : le déploiement se fait par copie/déploiement, pas par `git clone` direct sur le VPS).
+- Aucun secret ne doit apparaître dans le `docker-compose.yml`, dans les logs de conteneur, ni dans ce dépôt Git.
+
+### Stratégie de sauvegarde
+
+Comme relevé en section 10, **aucune sauvegarde n'existe actuellement sur ce VPS** pour quelque base que ce soit. L'architecture Docker ne change pas ce constat mais le rend plus simple à traiter :
+
+- `pg_dump` exécuté via `docker compose exec nss-db pg_dump -U <user> nss_test`, en cron dédié NSS (hors des cron systèmes existants).
+- Sauvegarde du volume `nss_odoo_filestore` via `tar` (ou `docker run --rm -v nss_odoo_filestore:/data ... tar czf ...`).
+- Copie chiffrée vers un stockage externe au VPS avant tout passage en PROD (conforme à `NSS_ERP_02` section 19).
+- Cette sauvegarde est **indépendante** de toute sauvegarde éventuelle de l'Odoo 19 existant (qui n'en a pas non plus) — NSS ne doit pas dépendre d'une infrastructure de sauvegarde tierce inexistante.
+
+### Coexistence avec Odoo 19 et n8n
+
+| Aspect | Odoo 19 existant | n8n (Docker) | NSS TEST (Docker, proposé) |
+|---|---|---|---|
+| Mécanisme | paquet `apt` natif | conteneurs Docker existants | conteneurs Docker dédiés |
+| Réseau Docker | non applicable | réseau(x) propre(s) à n8n | réseau `nss_network` dédié, aucune interconnexion |
+| PostgreSQL | cluster natif `16-main` | aucun (n8n n'utilise pas ce PostgreSQL) | conteneur `nss-db` séparé |
+| Port exposé host | `0.0.0.0:8069` (existant, non modifié) | `127.0.0.1:5678` / `127.0.0.1:5679` (existant, non modifié) | `127.0.0.1:8070` (nouveau, isolé) |
+| Volumes | chemins système (`/var/lib/odoo`, `/var/lib/postgresql/16/main`) | volumes Docker propres à n8n | volumes Docker propres à NSS (`nss_pg_data`, `nss_odoo_filestore`) |
+| Interaction prévue avec NSS | **aucune** | **aucune** | — |
+
+Aucune commande, configuration ou volume proposé ici ne touche, ne référence ni ne partage quoi que ce soit avec l'Odoo 19 existant, ses bases, ou les conteneurs n8n.
+
+### Ressources estimées
+
+Sur la base des mesures de l'audit (sections 4 et 5) et de valeurs usuelles pour un conteneur Odoo 18 + PostgreSQL 16 en mode test/pilote (charge faible, données fictives, 10-20 utilisateurs) :
+
+| Composant | RAM estimée | CPU estimé | Disque estimé |
+|---|---|---|---|
+| Conteneur `nss-odoo` (mono-worker, test) | 250–400 Mo | faible (pics ponctuels) | quelques centaines de Mo (image + code) |
+| Conteneur `nss-db` (PostgreSQL 16, base de test) | 100–200 Mo | faible | quelques dizaines de Mo au démarrage, croissance lente avec des données fictives |
+| **Total estimé** | **~400–600 Mo** | **négligeable au repos** | **< 1 Go au démarrage** |
+
+Rapporté aux **~6,2 Gi de RAM disponible** et aux **88 Go de disque disponible** mesurés en section 4, cette charge supplémentaire reste très largement absorbable sans risque pour l'Odoo 19 existant ni pour n8n. Un contrôle de charge réel sera fait après déploiement en LOT 1 (pas d'hypothèse figée au-delà de cette estimation).
+
+### Procédure future TEST → PROD
+
+Cohérent avec la stratégie déjà posée dans `NSS_ERP_02` (section 18 — pas de duplication brute d'une base de test vers la production) :
+
+1. **TEST** : déploiement du projet Compose NSS avec données 100 % fictives, port `127.0.0.1:8070`, sans exposition publique tant que le PO n'a pas validé les workflows.
+2. **Validation fonctionnelle** : PO valide les lots MVP en environnement TEST (conforme à `NSS_ERP_01`/`NSS_ERP_02`).
+3. **Exposition externe contrôlée** : une fois validé, un server block Nginx dédié (existant sur le VPS, non modifié pour l'instant) sera configuré pour faire reverse proxy en HTTPS vers `127.0.0.1:8070`, avec un sous-domaine à définir par le PO (ARCH-06) et un certificat Certbot dédié — **cette étape n'est pas réalisée dans ce lot**.
+4. **PROD** : un second projet Compose (`docker-compose.prod.yml` ou fichier `.env` distinct), avec ses propres volumes (`nss_pg_data_prod`, `nss_odoo_filestore_prod`) et son propre port interne (ex. `127.0.0.1:8071`), déployé séparément — jamais en réutilisant les volumes ou la base du projet TEST.
+5. **Migration des données réelles** : uniquement après validation des droits d'accès, des sauvegardes, et du processus de migration, conformément à `NSS_ERP_02` section 23.
+
+Cette procédure ne modifie ni Nginx, ni le firewall, ni aucun service existant à ce stade : elle est documentée pour préparer le LOT 1 et les lots suivants, pas pour être exécutée maintenant.
 
 ---
 
