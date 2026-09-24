@@ -1,0 +1,73 @@
+name: nss-test
+
+# NSS ERP — Environnement TEST (Docker Compose)
+#
+# Isolation stricte vis-à-vis de l'existant sur le VPS (voir
+# docs/implementation/NSS_ERP_03_AUDIT_VPS_HOSTINGER.md et
+# NSS_ERP_04_LOT1_DOCKER_PREPARATION.md) :
+#   - aucun réseau host, aucun volume, aucune base partagée avec
+#     l'Odoo 19 existant, PostgreSQL système, ou les conteneurs n8n ;
+#   - PostgreSQL NSS tourne dans son propre conteneur, sans port publié ;
+#   - Odoo NSS n'est joignable que sur 127.0.0.1 côté hôte.
+#
+# Ce fichier ne doit JAMAIS être exécuté (`docker compose up`) tant que
+# le LOT 1B n'a pas été explicitement validé par le Product Owner.
+
+services:
+  nss-db:
+    image: postgres:16
+    container_name: nss_test_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - nss_pg_data:/var/lib/postgresql/data
+    networks:
+      - nss_test_net
+    # Aucun "ports:" ici volontairement : PostgreSQL NSS n'est accessible
+    # que depuis nss-odoo, via le réseau Docker interne nss_test_net.
+    # Il n'est ni exposé sur l'hôte, ni sur Internet.
+
+  nss-odoo:
+    image: odoo:18.0
+    container_name: nss_test_odoo
+    restart: unless-stopped
+    depends_on:
+      - nss-db
+    environment:
+      # Connexion à PostgreSQL NSS uniquement (image officielle Odoo :
+      # HOST/USER/PASSWORD alimentent db_host/db_user/db_password).
+      HOST: nss-db
+      USER: ${POSTGRES_USER}
+      PASSWORD: ${POSTGRES_PASSWORD}
+    # Le mot de passe maître Odoo (admin_passwd) n'est jamais écrit dans
+    # config/odoo.conf (fichier versionné). Il est injecté ici, au moment
+    # du démarrage du conteneur, par interpolation Compose depuis .env —
+    # voir section 6 (Secrets) de NSS_ERP_04_LOT1_DOCKER_PREPARATION.md
+    # pour le détail et les limites de cette méthode.
+    command: ["--config", "/etc/odoo/odoo.conf", "--admin_passwd=${ODOO_ADMIN_PASSWD}"]
+    volumes:
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:ro
+      - ../../addons:/mnt/extra-addons:ro
+      - nss_odoo_data:/var/lib/odoo
+    ports:
+      # Publié UNIQUEMENT sur localhost du VPS. Pas d'exposition directe
+      # sur Internet (contrairement à l'Odoo 19 existant, cf. audit LOT 0).
+      # L'accès public en HTTPS passera plus tard par le Nginx déjà
+      # présent sur le VPS, sans modification de cette ligne.
+      - "127.0.0.1:8070:8069"
+    networks:
+      - nss_test_net
+
+networks:
+  nss_test_net:
+    name: nss_test_net
+    driver: bridge
+
+volumes:
+  nss_pg_data:
+    name: nss_pg_data
+  nss_odoo_data:
+    name: nss_odoo_data
