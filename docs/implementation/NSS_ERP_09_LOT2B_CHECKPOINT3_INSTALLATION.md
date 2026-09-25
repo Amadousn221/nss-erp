@@ -43,10 +43,36 @@ Aucune anomalie côté VPS. Environnement conforme au plan de déploiement.
 
 Créée avant toute écriture, sous `/var/backups/nss-erp/pre-checkpoint3-20260925-0700/` (permissions restreintes, `700`/`600`, non versionné) :
 
-- `nss_test_db.sql` : dump complet PostgreSQL de la base `nss_test` (`pg_dump`, 64 362 lignes, ~8,9 Mo), exécuté via les identifiants déjà injectés dans l'environnement du conteneur `nss_test_db` (jamais lus ni affichés par Claude Code — voir `NSS_ERP_05` §7 sur la non-exposition des secrets).
-- `addons-before.tar.gz` : snapshot de `/opt/nss-erp/addons` avant écriture (contenait uniquement `README.md`).
+- **Dump PostgreSQL pré-déploiement : réalisé.** `nss_test_db.sql` : dump complet de la base `nss_test` (`pg_dump`, format SQL texte, 64 362 lignes, ~8,9 Mo), exécuté via les identifiants déjà injectés dans l'environnement du conteneur `nss_test_db` (jamais lus ni affichés par Claude Code — voir `NSS_ERP_05` §7 sur la non-exposition des secrets).
+- **Snapshot addons pré-déploiement : réalisé.** `addons-before.tar.gz` : snapshot de `/opt/nss-erp/addons` avant écriture (contenait uniquement `README.md`).
+- **Filestore pré-déploiement dédié : NON réalisé.** Ce backup ne contient aucune archive du répertoire `filestore/nss_test`. Il ne faut pas comprendre le dump PostgreSQL comme couvrant le filestore : ce sont deux composants distincts sur Odoo (base de données vs pièces jointes/documents stockés sur disque).
 
-Un backup antérieur (`baseline-20260924-1855`) était déjà présent et n'a pas été modifié.
+**Écart factuel documenté :** le backup pré-déploiement réel du 25 septembre 2026 ne comprend donc que le dump PostgreSQL et le snapshot du dossier `addons/`, sans backup filestore dédié ni manifest SHA256 formalisé à ce moment-là. Ceci est corrigé a posteriori par le backup post-déploiement complémentaire (section 4 bis) et ne doit pas être présenté comme ayant été fait initialement.
+
+Ce point a une portée limitée en pratique : aucune donnée métier NSS n'existait dans `nss_test` avant l'installation (le module `nss_network` lui-même n'était pas encore installé, donc ses modèles — et tout filestore associé — n'existaient pas), et le filestore Odoo pré-existant (natif, hors NSS) était déjà couvert par le baseline `baseline-20260924-1855` (LOT 2A, 24 septembre 2026, dump + filestore + manifest SHA256 validés — voir `NSS_ERP_06`). Ce baseline antérieur reste distinct et ne remplace pas un backup pré-déploiement daté du 25 septembre : il documente l'état du 24 septembre, pas celui immédiatement avant ce Checkpoint 3.
+
+Le backup `baseline-20260924-1855` était déjà présent et n'a pas été modifié.
+
+---
+
+## 4 bis. Sauvegarde post-déploiement complémentaire
+
+Pour combler l'écart ci-dessus, une sauvegarde complémentaire a été créée après l'installation et les tests, **sans aucune écriture de donnée métier**, sous `/var/backups/nss-erp/post-checkpoint3-20260925-1110/` (permissions restreintes, `700`/`600`, non versionné). Présentée explicitement comme **POST-déploiement** — elle ne se substitue pas rétroactivement à un backup pré-déploiement.
+
+| Fichier | Contenu | Validation |
+|---|---|---|
+| `nss_test_post_checkpoint3.dump` | Dump PostgreSQL complet de `nss_test`, format `pg_dump -Fc` (custom) | `pg_restore --list` : **5037 entrées TOC**, exit code 0 |
+| `nss_test_filestore.tar.gz` | Archive de `filestore/nss_test/` (répertoire complet) | `tar -tzf` : **76 entrées**, lecture sans erreur |
+| `MANIFEST.txt` | Métadonnées : date, type = POST-CHECKPOINT3, SHA256 des deux fichiers, état `nss_network` = `installed`, 0/0/0 lignes dans les 3 tables NSS | Aucun secret — vérifié manuellement avant écriture |
+
+Empreintes SHA256 (également dans `MANIFEST.txt`) :
+
+```
+8298d147dda4fb0700ff06a4d351617541208e4620ef1ec893f27f535a0d96e0  nss_test_post_checkpoint3.dump
+26a16667703dca339c323ae71c6df26f260d078f27ac250a35ab67048bcd6dc4  nss_test_filestore.tar.gz
+```
+
+Recontrôle en lecture seule effectué immédiatement après cette sauvegarde : `nss_network` = `installed`, 0/0/0 ligne dans les tables NSS, `nss_test_odoo`/`nss_test_db` actifs sans interruption, HTTPS 200, Odoo 19/`n8n`/`n8n-connect`/PostgreSQL système/Nginx tous intacts (détail identique à la section 11).
 
 ---
 
@@ -81,7 +107,7 @@ docker exec nss_test_odoo /entrypoint.sh odoo -d nss_test -u nss_network \
   --test-enable --test-tags /nss_network --http-port=8090 --stop-after-init
 ```
 
-**Résultat : 15 tests exécutés, 0 échec, 0 erreur** (`odoo.tests.result: 0 failed, 0 error(s) of 15 tests when loading database 'nss_test'`), cohérent avec le message du commit `3003ebe` (« 15/15 tests », validés au préalable par CI GitHub Actions). Le nombre de tests (15, contre 12 méthodes documentées dans `NSS_ERP_08` §12) reflète l'évolution du fichier de tests entre le checkpoint précédent et le commit `3003ebe`.
+**Résultat : 15 tests exécutés, 15 réussis, 0 échec, 0 erreur** (`odoo.tests.result: 0 failed, 0 error(s) of 15 tests when loading database 'nss_test'`), cohérent avec `NSS_ERP_08` §12 (15 méthodes de test documentées) et avec le message du commit `3003ebe` (« 15/15 tests », validés au préalable par CI GitHub Actions).
 
 Vérification post-tests : `nss_country_membership`, `nss_membership`, `nss_responsibility_history` contiennent **0 ligne** après exécution — les `TransactionCase` ont bien annulé toutes leurs écritures, aucune donnée de test résiduelle.
 
