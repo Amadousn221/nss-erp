@@ -6,6 +6,7 @@ Toutes les données utilisées sont fictives. Les pays réutilisés
 Odoo et ne représentent pas le périmètre géographique réel de NSS
 (10 pays, chargés dans un checkpoint distinct après validation).
 """
+import re
 from datetime import date, timedelta
 
 from odoo import fields
@@ -246,3 +247,70 @@ class TestNssNetwork(TransactionCase):
         )
         with self.assertRaises(AccessError):
             membership.with_user(standard_user).unlink()
+
+    # --- Checkpoint 4A : filtres métier et UX (revue corrective) ---
+
+    def test_coordinator_id_domain_is_business_restrictive(self):
+        domain = str(self.env["nss.country.membership"]._fields["coordinator_id"].domain)
+        self.assertIn("is_company", domain)
+        self.assertIn("nss_country_id", domain)
+
+    def test_focal_org_id_domain_is_business_restrictive(self):
+        domain = str(self.env["nss.country.membership"]._fields["focal_org_id"].domain)
+        self.assertIn("is_company", domain)
+        self.assertIn("nss_org_type", domain)
+
+    def test_membership_organization_id_domain_is_business_restrictive(self):
+        domain = str(self.env["nss.membership"]._fields["organization_id"].domain)
+        self.assertIn("is_company", domain)
+        self.assertIn("nss_org_type", domain)
+
+    def test_responsibility_partner_and_organization_domains(self):
+        partner_domain = str(self.env["nss.responsibility.history"]._fields["partner_id"].domain)
+        organization_domain = str(self.env["nss.responsibility.history"]._fields["organization_id"].domain)
+        self.assertIn("is_company", partner_domain)
+        self.assertIn("nss_country_id", partner_domain)
+        self.assertIn("is_company", organization_domain)
+        self.assertIn("nss_org_type", organization_domain)
+
+    def test_project_funder_domain_does_not_require_org_type(self):
+        domain = str(self.env["project.project"]._fields["nss_funder_id"].domain)
+        self.assertIn("is_company", domain)
+        self.assertNotIn("nss_org_type", domain)
+
+    def test_nss_country_id_usable_for_individual_and_company(self):
+        individual = self.env["res.partner"].create(
+            {
+                "name": "Personne Individuelle Fictive",
+                "is_company": False,
+                "nss_country_id": self.membership_fr.id,
+            }
+        )
+        company = self.env["res.partner"].create(
+            {
+                "name": "Association Fictive Company",
+                "is_company": True,
+                "nss_country_id": self.membership_fr.id,
+                "nss_org_type": "ong",
+            }
+        )
+        self.assertEqual(individual.nss_country_id, self.membership_fr)
+        self.assertEqual(company.nss_country_id, self.membership_fr)
+
+    def test_partner_view_hides_org_fields_unless_company(self):
+        view = self.env.ref("nss_network.view_partner_form_nss_network")
+        self.assertIn('invisible="not is_company"', view.arch_db)
+        self.assertIn("nss_org_type", view.arch_db)
+        self.assertIn("nss_founding_member", view.arch_db)
+
+    def test_membership_view_shows_currency_without_group_no_one(self):
+        view = self.env.ref("nss_network.view_nss_membership_form")
+        match = re.search(r'<field name="currency_id"[^/]*/>', view.arch_db)
+        self.assertIsNotNone(match)
+        self.assertNotIn("group_no_one", match.group(0))
+
+    def test_country_membership_list_view_has_mobile_optional_columns(self):
+        view = self.env.ref("nss_network.view_nss_country_membership_list")
+        self.assertIn('<field name="join_date" optional="hide"/>', view.arch_db)
+        self.assertIn('<field name="focal_org_id" optional="hide"/>', view.arch_db)
+        self.assertIn('<field name="organization_count" optional="hide"/>', view.arch_db)

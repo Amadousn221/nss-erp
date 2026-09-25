@@ -34,13 +34,17 @@ class NssCountryMembership(models.Model):
         "res.partner",
         string="Coordinatrice / Représentante",
         tracking=True,
-        help="Personne coordinatrice ou représentante nationale NSS pour ce pays.",
+        domain="[('is_company', '=', False), ('nss_country_id', '!=', False)]",
+        help="Personne coordinatrice ou représentante nationale NSS pour ce pays. "
+        "Doit être une personne physique déjà rattachée à un pays NSS dans Contacts.",
     )
     focal_org_id = fields.Many2one(
         "res.partner",
         string="Organisation point focal",
         tracking=True,
-        help="Organisation jouant le rôle de point focal NSS pour ce pays, le cas échéant.",
+        domain="[('is_company', '=', True), ('nss_org_type', '!=', False)]",
+        help="Organisation jouant le rôle de point focal NSS pour ce pays, le cas échéant. "
+        "Doit être une organisation NSS déjà configurée dans Contacts.",
     )
     active = fields.Boolean(string="Actif", default=True)
     notes = fields.Text(string="Notes")

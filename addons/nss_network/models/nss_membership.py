@@ -15,6 +15,7 @@ class NssMembership(models.Model):
         required=True,
         tracking=True,
         index=True,
+        domain="[('is_company', '=', True), ('nss_org_type', '!=', False)]",
     )
     status = fields.Selection(
         [

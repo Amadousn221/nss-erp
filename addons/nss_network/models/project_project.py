@@ -18,4 +18,6 @@ class ProjectProject(models.Model):
         "res.partner",
         string="Bailleur principal",
         tracking=True,
+        domain="[('is_company', '=', True)]",
+        help="Le bailleur peut être extérieur au réseau NSS (pas de type d'organisation NSS requis).",
     )

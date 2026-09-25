@@ -8,10 +8,10 @@
             <list string="Pays NSS">
                 <field name="country_id"/>
                 <field name="status"/>
-                <field name="join_date"/>
                 <field name="coordinator_id"/>
-                <field name="focal_org_id"/>
-                <field name="organization_count"/>
+                <field name="join_date" optional="hide"/>
+                <field name="focal_org_id" optional="hide"/>
+                <field name="organization_count" optional="hide"/>
                 <field name="active" column_invisible="1"/>
             </list>
         </field>
@@ -36,8 +36,8 @@
                         </group>
                     </group>
                     <group string="Coordination nationale">
-                        <field name="coordinator_id"/>
-                        <field name="focal_org_id"/>
+                        <field name="coordinator_id" options="{'no_create': True}"/>
+                        <field name="focal_org_id" options="{'no_create': True}"/>
                     </group>
                     <notebook>
                         <page string="Organisations rattachées" name="organizations">

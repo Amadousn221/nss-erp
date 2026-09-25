@@ -15,11 +15,13 @@ class NssResponsibilityHistory(models.Model):
         required=True,
         tracking=True,
         index=True,
+        domain="[('is_company', '=', False), ('nss_country_id', '!=', False)]",
     )
     organization_id = fields.Many2one(
         "res.partner",
         string="Organisation",
         tracking=True,
+        domain="[('is_company', '=', True), ('nss_org_type', '!=', False)]",
         help="Organisation dans laquelle la fonction est exercée, le cas échéant.",
     )
     country_membership_id = fields.Many2one(
