@@ -25,8 +25,8 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="partner_id"/>
-                            <field name="organization_id"/>
+                            <field name="partner_id" options="{'no_create': True}"/>
+                            <field name="organization_id" options="{'no_create': True}"/>
                             <field name="country_membership_id"/>
                             <field name="role"/>
                         </group>

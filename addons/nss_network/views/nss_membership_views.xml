@@ -25,9 +25,8 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="organization_id"/>
+                            <field name="organization_id" options="{'no_create': True}"/>
                             <field name="status"/>
-                            <field name="currency_id" groups="base.group_no_one"/>
                         </group>
                         <group>
                             <field name="application_date"/>
@@ -36,6 +35,7 @@
                         </group>
                     </group>
                     <group string="Cotisation">
+                        <field name="currency_id"/>
                         <field name="fee_due"/>
                         <field name="fee_paid"/>
                     </group>

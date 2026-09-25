@@ -11,9 +11,9 @@
                     <group>
                         <group>
                             <field name="nss_country_id" options="{'no_create': True}"/>
-                            <field name="nss_org_type"/>
                         </group>
-                        <group>
+                        <group invisible="not is_company">
+                            <field name="nss_org_type"/>
                             <field name="nss_founding_member"/>
                         </group>
                     </group>

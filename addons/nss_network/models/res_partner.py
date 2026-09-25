@@ -9,7 +9,7 @@ class ResPartner(models.Model):
         "nss.country.membership",
         string="Pays NSS",
         tracking=True,
-        help="Pays membre NSS de rattachement de cette organisation.",
+        help="Pays membre NSS de rattachement de ce contact ou cette organisation.",
     )
     nss_org_type = fields.Selection(
         [
