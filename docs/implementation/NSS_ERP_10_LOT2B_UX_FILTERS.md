@@ -140,7 +140,7 @@ Toutes les données de test restent fictives. Total : **24 tests**.
 
 ## 12. GitHub Actions
 
-Le workflow existant `.github/workflows/nss-network-ci.yml` est réutilisé sans modification (Odoo 18 + PostgreSQL 16, installation réelle de `nss_network`, exécution des tests via `--test-tags /nss_network`). Il sera déclenché automatiquement à l'ouverture de la Pull Request de ce checkpoint.
+Le workflow existant `.github/workflows/nss-network-ci.yml` a été réutilisé sans modification (Odoo 18 + PostgreSQL 16, installation réelle de `nss_network`, exécution des tests via `--test-tags /nss_network`), déclenché automatiquement à l'ouverture de la Pull Request #12 de ce checkpoint.
 
 Validation locale préalable, sans Docker (environnement cloud Claude, démon Docker non accessible — `failed to connect to the docker API at unix:///var/run/docker.sock`, identique à la limite déjà documentée dans `NSS_ERP_08`) :
 
@@ -149,13 +149,23 @@ Validation locale préalable, sans Docker (environnement cloud Claude, démon Do
 - recherche de secrets (`password`/`passwd`/`private key`/`secret`/`api_key`/`token`) : **PASS**, aucune occurrence ;
 - recherche des noms des 10 pays NSS validés dans l'addon : **PASS**, aucune occurrence.
 
-Le résultat réel de l'exécution Odoo (installation + 24 tests) sera confirmé par GitHub Actions sur la Pull Request.
+**Résultat réel GitHub Actions (run de référence [`36137353815`](https://github.com/Amadousn221/nss-erp/actions/runs/36137353815), commit `9264e91`) :**
+
+- Odoo 18 : **PASS**
+- PostgreSQL 16 : **PASS**
+- `nss_network` installé (module réellement chargé) : **PASS**
+- 24 tests exécutés
+- 24 tests réussis
+- 0 échec
+- 0 erreur
+- exit code Odoo : `0`
+- nettoyage Docker (conteneurs + réseau) : **PASS**
 
 ---
 
 ## 13. Limites
 
-- Aucun test n'exécute réellement Odoo 18 dans cet environnement (Docker non disponible côté cloud Claude) : la validation réelle dépend entièrement de GitHub Actions sur la PR, comme pour les checkpoints précédents avant leur installation sur `nss_test`.
+- Docker n'était pas disponible dans l'environnement cloud Claude utilisé pour ce checkpoint (même limite que celle déjà documentée dans `NSS_ERP_08`, §« Validation réelle Odoo 18 », Checkpoint 2.5). La validation réelle a donc été effectuée avec succès dans GitHub Actions (run `36137353815`, cf. section 12) : aucune validation locale Docker n'a été nécessaire.
 - La configuration de `res.company` (« My Company ») n'a fait l'objet d'aucune vérification ni écriture réelle dans ce checkpoint : seule la nécessité d'un futur audit est documentée (section 10).
 - Les record rules par pays restent hors périmètre (déjà documenté dans `NSS_ERP_08` §10/§14).
 - La synchronisation `status = "archive"` ↔ `active = False` reste volontairement absente (`NSS_ERP_08` §4), non traitée par ce checkpoint.
