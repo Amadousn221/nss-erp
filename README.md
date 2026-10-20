@@ -4,7 +4,7 @@ Projet ERP pour **Nous Sommes la Solution (NSS)**, mouvement panafricain de femm
 
 ## État du projet
 
-**Phase de recherche et d'audit fonctionnel.** L'architecture technique (`NSS_ERP_02`) est rédigée mais pas encore validée par le Product Owner : aucune installation, configuration ou développement de l'ERP ne doit démarrer avant cette validation (voir `CLAUDE.md`, section 2).
+**Implémentation en cours sur l'environnement de test NSS ERP TEST (LOT 2B), checkpoint par checkpoint, sous validation explicite du Product Owner.** Le module `nss_network` est installé sur `nss_test` (Odoo 18 Community, PostgreSQL 16, Docker, VPS Hostinger) ; le Checkpoint 4A (UX et filtres métier) y est déployé (20 octobre 2026). Aucune donnée métier NSS n'est encore chargée (liste « Pays NSS » vide) ; aucun déploiement de production n'est engagé. Le journal détaillé de chaque checkpoint est dans `docs/implementation/` (dernier : `NSS_ERP_12`, prochain : `NSS_ERP_13`).
 
 ## Documents
 
@@ -12,6 +12,9 @@ Projet ERP pour **Nous Sommes la Solution (NSS)**, mouvement panafricain de femm
 - [`docs/NSS_ERP_00_RECHERCHE_PAYS_2026.md`](./docs/NSS_ERP_00_RECHERCHE_PAYS_2026.md) — recherche sur l'implantation géographique de NSS.
 - [`docs/NSS_ERP_01_AUDIT_PROCESSUS_BESOINS.md`](./docs/NSS_ERP_01_AUDIT_PROCESSUS_BESOINS.md) — audit des processus et besoins métier.
 - [`docs/NSS_ERP_02_ARCHITECTURE_ODOO.md`](./docs/NSS_ERP_02_ARCHITECTURE_ODOO.md) — architecture technique Odoo proposée.
+- [`docs/implementation/`](./docs/implementation/) — journal d'implémentation (audit VPS, déploiement NSS TEST, module `nss_network`, checkpoints) : `NSS_ERP_03` à `NSS_ERP_13`.
+  - [`NSS_ERP_12`](./docs/implementation/NSS_ERP_12_LOT2B_CHECKPOINT4A_DEPLOIEMENT.md) — Checkpoint 4A : déploiement et clôture.
+  - [`NSS_ERP_13`](./docs/implementation/NSS_ERP_13_LOT2B_CHECKPOINT5_PAYS_NSS_PREPARATION.md) — préparation de l'intégration des 10 pays NSS (aucune donnée chargée).
 
 ## Solution envisagée
 
