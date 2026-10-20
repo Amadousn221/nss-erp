@@ -2,7 +2,7 @@
 
 **Référence :** NSS_ERP_10
 **Date :** 25 septembre 2026
-**Statut :** code modifié dans `nss_network`, **non installé sur le VPS**, aucune donnée métier NSS créée
+**Statut :** code modifié dans `nss_network`, **non installé sur le VPS**, aucune donnée métier NSS créée — *mise à jour du 20 octobre 2026 : déployé sur NSS TEST le 20/10/2026, voir `NSS_ERP_12`*
 **Prérequis :** `NSS_ERP_09` (Checkpoint 3, `nss_network` installé sur `nss_test`, 15/15 tests) ; ce checkpoint travaille uniquement en Git + GitHub Actions, sans toucher au VPS.
 
 ---
